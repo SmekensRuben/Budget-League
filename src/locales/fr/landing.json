@@ -1,0 +1,16 @@
+{
+  "featuresRemovedTitle": "Toutes les fonctionnalités ont été supprimées",
+  "featuresRemovedSubtitle": "Elite Horizons ne propose plus les fonctionnalités précédentes.",
+  "featuresRemovedNote": "Vous pouvez toujours vous connecter pour consulter votre compte ou demander de l'aide.",
+  "featuresRemovedLogin": "Aller à la connexion",
+  "featuresRemovedDashboard": "Ouvrir la page de tableau de bord vide",
+  "featuresRemovedUpdateTitle": "Qu'est-ce qui a changé ?",
+  "featuresRemovedUpdateBody": "Tous les modules, y compris les tableaux de bord, les entreprises, les contacts et les paramètres, ont été supprimés.",
+  "featuresRemovedPoint1": "La navigation n'affiche plus les liens vers l'ancien ensemble de fonctionnalités.",
+  "featuresRemovedPoint2": "Seule la connexion reste pour gérer l'accès au compte.",
+  "featuresRemovedSupportTitle": "Besoin d'aide ?",
+  "featuresRemovedSupportBody": "Connectez-vous pour vérifier l'accès ou contactez votre administrateur.",
+  "featuresRemovedBack": "Retour à l'accueil",
+  "featuresRemovedFooter": "Toutes les anciennes fonctionnalités ont été supprimées.",
+  "featuresRemovedLogout": "Se déconnecter"
+}
