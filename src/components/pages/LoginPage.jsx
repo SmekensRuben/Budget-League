@@ -21,7 +21,7 @@ export default function LoginPage() {
   const { hotelUid, loading } = useHotelContext();
 
   
-  const from = location.state?.from || "/dashboard";
+  const from = location.state?.from || "/";
 
   useEffect(() => {
     const savedEmail = localStorage.getItem("rememberEmail");
