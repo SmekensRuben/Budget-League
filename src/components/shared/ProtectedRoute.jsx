@@ -1,8 +1,8 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useHotelContext } from "../../contexts/HotelContext";
+import { useAuthContext } from "../../contexts/AuthContext";
 
 export default function ProtectedRoute({ children }) {
-  const { hotelUid, loading } = useHotelContext();
+  const { user, loading } = useAuthContext();
   const location = useLocation();
 
   if (loading) {
@@ -13,12 +13,12 @@ export default function ProtectedRoute({ children }) {
     );
   }
 
-  if (!hotelUid) {
+  if (!user) {
     return (
       <Navigate
         to="/login"
         replace
-        state={{ from: location.pathname || "/settings" }}
+        state={{ from: location.pathname || "/" }}
       />
     );
   }

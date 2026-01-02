@@ -1,4 +1,4 @@
-# Elite Horizons
+# Budget League
 
 A React + Vite application backed by Firebase.
 
@@ -43,4 +43,3 @@ Start the frontend in development mode:
 npm run dev
 ```
 The application will be available at `http://localhost:5173` by default.
-
