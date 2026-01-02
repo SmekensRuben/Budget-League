@@ -1,0 +1,118 @@
+{
+  "nav": {
+    "transactions": "Transactions",
+    "budgets": "Budgets",
+    "insights": "Insights",
+    "settings": "Settings"
+  },
+  "actions": {
+    "logout": "Log out"
+  },
+  "pages": {
+    "start": {
+      "title": "Welcome",
+      "subtitle": "Your personal finance cockpit",
+      "kicker": "Clean start",
+      "heading": "Budget League is ready to be filled.",
+      "description": "You can start adding modules and building out the household experience step by step.",
+      "cta": "Add transactions"
+    },
+    "transactions": {
+      "title": "Add transactions",
+      "subtitle": "Only available when you are part of a household.",
+      "fields": {
+        "date": "Date",
+        "amount": "Amount",
+        "currency": "Currency",
+        "merchant": "Merchant",
+        "category": "Category",
+        "paymentMethod": "Payment method",
+        "paidBy": "Paid by user ID",
+        "description": "Description",
+        "descriptionPlaceholder": "Optional description"
+      },
+      "actions": {
+        "save": "Save transaction",
+        "reset": "Reset form"
+      },
+      "requiredFields": "Required fields",
+      "latestEntry": "Latest entry",
+      "noEntry": "No transaction saved yet.",
+      "noHousehold": "Join or create a household before adding transactions.",
+      "saved": "Transaction saved in your household."
+    },
+    "budgets": {
+      "title": "Budgets",
+      "subtitle": "Plan monthly limits and targets.",
+      "placeholder": "Budget planning will appear here."
+    },
+    "insights": {
+      "title": "Insights",
+      "subtitle": "Track trends across the household.",
+      "placeholder": "Insight dashboards will appear here."
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage your preferences and household data.",
+    "tabs": {
+      "general": "General",
+      "categories": "Categories",
+      "household": "Household",
+      "data": "Data",
+      "rules": "Rules",
+      "paymentMethods": "Payment Methods",
+      "privacy": "Privacy",
+      "community": "Community"
+    },
+    "placeholder": "Settings for this section will be added soon.",
+    "general": {
+      "title": "General preferences",
+      "subtitle": "Update your currency, language, and notifications.",
+      "currency": "Currency",
+      "language": "Language",
+      "languages": {
+        "nl": "Dutch",
+        "en": "English"
+      },
+      "notifications": "Notifications",
+      "notificationOptions": {
+        "householdTransactions": "Transactions added in the household",
+        "thresholds": "Thresholds reached"
+      },
+      "save": "Save preferences",
+      "saved": "Preferences saved."
+    },
+    "categories": {
+      "title": "Categories",
+      "subtitle": "Add income and expense categories with subcategories.",
+      "namePlaceholder": "Category name",
+      "parentPlaceholder": "No parent (top-level)",
+      "types": {
+        "expense": "Expense",
+        "income": "Income"
+      },
+      "add": "Add category",
+      "empty": "No categories yet.",
+      "noSubcategories": "No subcategories yet."
+    },
+    "household": {
+      "title": "Household",
+      "subtitle": "Manage the people in your household.",
+      "namePlaceholder": "Household name",
+      "create": "Create household",
+      "name": "Household name",
+      "noMembers": "No household members yet.",
+      "head": "Head of household",
+      "makeHead": "Make head",
+      "remove": "Remove"
+    },
+    "paymentMethods": {
+      "title": "Payment methods",
+      "subtitle": "Keep track of the payment methods you use.",
+      "placeholder": "Payment method name",
+      "add": "Add method",
+      "empty": "No payment methods yet."
+    }
+  }
+}

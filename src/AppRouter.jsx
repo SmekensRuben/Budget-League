@@ -5,6 +5,9 @@ import LoginPage from "./components/pages/LoginPage.jsx";
 import ProtectedRoute from "./components/shared/ProtectedRoute.jsx";
 import StartPage from "./components/pages/StartPage.jsx";
 import TransactionsPage from "./components/pages/TransactionsPage.jsx";
+import BudgetsPage from "./components/pages/BudgetsPage.jsx";
+import InsightsPage from "./components/pages/InsightsPage.jsx";
+import SettingsPage from "./components/pages/SettingsPage.jsx";
 
 export default function AppRouter() {
   return (
@@ -23,6 +26,30 @@ export default function AppRouter() {
         element={
           <ProtectedRoute>
             <TransactionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/budgets"
+        element={
+          <ProtectedRoute>
+            <BudgetsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/insights"
+        element={
+          <ProtectedRoute>
+            <InsightsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <SettingsPage />
           </ProtectedRoute>
         }
       />

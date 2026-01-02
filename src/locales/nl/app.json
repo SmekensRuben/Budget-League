@@ -1,0 +1,118 @@
+{
+  "nav": {
+    "transactions": "Transacties",
+    "budgets": "Budgetten",
+    "insights": "Inzichten",
+    "settings": "Instellingen"
+  },
+  "actions": {
+    "logout": "Uitloggen"
+  },
+  "pages": {
+    "start": {
+      "title": "Welkom",
+      "subtitle": "Jouw persoonlijke finance cockpit",
+      "kicker": "Clean start",
+      "heading": "Budget League is klaar om opgebouwd te worden.",
+      "description": "Je kunt stap voor stap modules toevoegen en de household-ervaring uitbouwen.",
+      "cta": "Transacties toevoegen"
+    },
+    "transactions": {
+      "title": "Transacties invoeren",
+      "subtitle": "Alleen beschikbaar wanneer je in een household zit.",
+      "fields": {
+        "date": "Datum",
+        "amount": "Bedrag",
+        "currency": "Valuta",
+        "merchant": "Merchant",
+        "category": "Categorie",
+        "paymentMethod": "Payment method",
+        "paidBy": "Betaald door user ID",
+        "description": "Omschrijving",
+        "descriptionPlaceholder": "Optionele omschrijving"
+      },
+      "actions": {
+        "save": "Transactie opslaan",
+        "reset": "Formulier leegmaken"
+      },
+      "requiredFields": "Vereiste velden",
+      "latestEntry": "Laatste invoer",
+      "noEntry": "Nog geen transactie opgeslagen.",
+      "noHousehold": "Maak of word lid van een household om transacties toe te voegen.",
+      "saved": "Transactie opgeslagen in je household."
+    },
+    "budgets": {
+      "title": "Budgetten",
+      "subtitle": "Plan maandelijkse limieten en doelen.",
+      "placeholder": "Budgetplanning verschijnt hier."
+    },
+    "insights": {
+      "title": "Inzichten",
+      "subtitle": "Volg trends in je household.",
+      "placeholder": "Inzichtendashboards verschijnen hier."
+    }
+  },
+  "settings": {
+    "title": "Instellingen",
+    "subtitle": "Beheer je voorkeuren en household-data.",
+    "tabs": {
+      "general": "Algemeen",
+      "categories": "Categorieën",
+      "household": "Household",
+      "data": "Data",
+      "rules": "Regels",
+      "paymentMethods": "Payment methods",
+      "privacy": "Privacy",
+      "community": "Community"
+    },
+    "placeholder": "Instellingen voor dit onderdeel volgen binnenkort.",
+    "general": {
+      "title": "Algemene voorkeuren",
+      "subtitle": "Werk je valuta, taal en notificaties bij.",
+      "currency": "Valuta",
+      "language": "Taal",
+      "languages": {
+        "nl": "Nederlands",
+        "en": "Engels"
+      },
+      "notifications": "Notificaties",
+      "notificationOptions": {
+        "householdTransactions": "Transacties toegevoegd in de household",
+        "thresholds": "Drempels bereikt"
+      },
+      "save": "Voorkeuren opslaan",
+      "saved": "Voorkeuren opgeslagen."
+    },
+    "categories": {
+      "title": "Categorieën",
+      "subtitle": "Voeg income- en expense-categorieën met subcategorieën toe.",
+      "namePlaceholder": "Categorienaam",
+      "parentPlaceholder": "Geen parent (bovenliggend)",
+      "types": {
+        "expense": "Expense",
+        "income": "Income"
+      },
+      "add": "Categorie toevoegen",
+      "empty": "Nog geen categorieën.",
+      "noSubcategories": "Nog geen subcategorieën."
+    },
+    "household": {
+      "title": "Household",
+      "subtitle": "Beheer de mensen in je household.",
+      "namePlaceholder": "Naam van household",
+      "create": "Household aanmaken",
+      "name": "Householdnaam",
+      "noMembers": "Nog geen householdleden.",
+      "head": "Head of household",
+      "makeHead": "Maak head",
+      "remove": "Verwijderen"
+    },
+    "paymentMethods": {
+      "title": "Payment methods",
+      "subtitle": "Hou bij welke betaalmethodes je gebruikt.",
+      "placeholder": "Naam van betaalmethode",
+      "add": "Betaalmethode toevoegen",
+      "empty": "Nog geen betaalmethodes."
+    }
+  }
+}
