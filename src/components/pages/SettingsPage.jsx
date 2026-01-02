@@ -31,6 +31,7 @@ export default function SettingsPage() {
     () => [
       { id: "general", label: t("settings.tabs.general") },
       { id: "categories", label: t("settings.tabs.categories") },
+      { id: "accounts", label: t("settings.tabs.accounts") },
       { id: "household", label: t("settings.tabs.household") },
       { id: "data", label: t("settings.tabs.data") },
       { id: "rules", label: t("settings.tabs.rules") },
@@ -73,6 +74,7 @@ export default function SettingsPage() {
           {activeTab === "categories" ? (
             <CategoriesTab user={user} />
           ) : null}
+          {activeTab === "accounts" ? <AccountsTab user={user} /> : null}
           {activeTab === "household" ? (
             <HouseholdTab user={user} profile={profile} />
           ) : null}
@@ -252,7 +254,10 @@ function CategoriesTab({ user }) {
       }));
       setCategories(data);
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      unsubscribeAccounts();
+    };
   }, [user]);
 
   const topLevelCategories = categories.filter((category) => !category.parentId);
@@ -360,6 +365,129 @@ function CategoriesTab({ user }) {
           })
         )}
       </div>
+    </div>
+  );
+}
+
+function AccountsTab({ user }) {
+  const { t } = useTranslation("app");
+  const [accounts, setAccounts] = useState([]);
+  const [formState, setFormState] = useState({
+    name: "",
+    openingBalance: "",
+    openingBalanceDate: ""
+  });
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    const accountsRef = collection(db, "users", user.uid, "accounts");
+    const unsubscribe = onSnapshot(accountsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setAccounts(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleAdd = async (event) => {
+    event.preventDefault();
+    if (!user || !formState.name.trim()) {
+      return;
+    }
+    await addDoc(collection(db, "users", user.uid, "accounts"), {
+      name: formState.name.trim(),
+      openingBalance: Number(formState.openingBalance) || 0,
+      openingBalanceDate: formState.openingBalanceDate || null,
+      createdAt: serverTimestamp()
+    });
+    setFormState({
+      name: "",
+      openingBalance: "",
+      openingBalanceDate: ""
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">{t("settings.accounts.title")}</h2>
+        <p className="text-sm text-slate-400">{t("settings.accounts.subtitle")}</p>
+      </div>
+
+      <form className="grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]" onSubmit={handleAdd}>
+        <input
+          value={formState.name}
+          onChange={(event) =>
+            setFormState((prev) => ({ ...prev, name: event.target.value }))
+          }
+          className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+          placeholder={t("settings.accounts.namePlaceholder")}
+        />
+        <input
+          type="number"
+          step="0.01"
+          value={formState.openingBalance}
+          onChange={(event) =>
+            setFormState((prev) => ({
+              ...prev,
+              openingBalance: event.target.value
+            }))
+          }
+          className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+          placeholder={t("settings.accounts.openingBalancePlaceholder")}
+        />
+        <input
+          type="date"
+          value={formState.openingBalanceDate}
+          onChange={(event) =>
+            setFormState((prev) => ({
+              ...prev,
+              openingBalanceDate: event.target.value
+            }))
+          }
+          className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+        />
+        <button
+          type="submit"
+          className="rounded-xl bg-amber-500/90 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+        >
+          {t("settings.accounts.add")}
+        </button>
+      </form>
+
+      {accounts.length === 0 ? (
+        <p className="text-sm text-slate-400">{t("settings.accounts.empty")}</p>
+      ) : (
+        <ul className="space-y-2 text-sm text-slate-300">
+          {accounts.map((account) => (
+            <li
+              key={account.id}
+              className="rounded-xl border border-white/10 bg-slate-950/40 p-3"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-semibold text-white">{account.name}</span>
+                <span className="text-xs uppercase tracking-[0.2em] text-amber-200">
+                  {t("settings.accounts.openingBalanceLabel")}
+                </span>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                <span>
+                  {t("settings.accounts.openingBalanceValue", {
+                    amount: Number(account.openingBalance || 0).toFixed(2)
+                  })}
+                </span>
+                {account.openingBalanceDate ? (
+                  <span>{account.openingBalanceDate}</span>
+                ) : null}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
@@ -526,19 +654,29 @@ function HouseholdTab({ user, profile }) {
 function PaymentMethodsTab({ user }) {
   const { t } = useTranslation("app");
   const [methods, setMethods] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [name, setName] = useState("");
+  const [accountId, setAccountId] = useState("");
 
   useEffect(() => {
     if (!user) {
       return;
     }
     const methodsRef = collection(db, "users", user.uid, "paymentMethods");
+    const accountsRef = collection(db, "users", user.uid, "accounts");
     const unsubscribe = onSnapshot(methodsRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
         ...docSnap.data()
       }));
       setMethods(data);
+    });
+    const unsubscribeAccounts = onSnapshot(accountsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setAccounts(data);
     });
     return () => unsubscribe();
   }, [user]);
@@ -550,9 +688,27 @@ function PaymentMethodsTab({ user }) {
     }
     await addDoc(collection(db, "users", user.uid, "paymentMethods"), {
       name: name.trim(),
+      accountId: accountId || null,
       createdAt: serverTimestamp()
     });
     setName("");
+    setAccountId("");
+  };
+
+  const accountLookup = useMemo(() => {
+    return accounts.reduce((acc, account) => {
+      acc[account.id] = account.name;
+      return acc;
+    }, {});
+  }, [accounts]);
+
+  const handleUpdateAccount = async (methodId, nextAccountId) => {
+    if (!user) {
+      return;
+    }
+    await updateDoc(doc(db, "users", user.uid, "paymentMethods", methodId), {
+      accountId: nextAccountId || null
+    });
   };
 
   return (
@@ -566,13 +722,25 @@ function PaymentMethodsTab({ user }) {
         </p>
       </div>
 
-      <form className="flex flex-col gap-3 md:flex-row" onSubmit={handleAdd}>
+      <form className="grid gap-3 md:grid-cols-[2fr_1fr_auto]" onSubmit={handleAdd}>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           className="flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
           placeholder={t("settings.paymentMethods.placeholder")}
         />
+        <select
+          value={accountId}
+          onChange={(event) => setAccountId(event.target.value)}
+          className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+        >
+          <option value="">{t("settings.paymentMethods.accountPlaceholder")}</option>
+          {accounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}
+            </option>
+          ))}
+        </select>
         <button
           type="submit"
           className="rounded-xl bg-amber-500/90 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
@@ -590,9 +758,29 @@ function PaymentMethodsTab({ user }) {
           {methods.map((method) => (
             <li
               key={method.id}
-              className="rounded-xl border border-white/10 bg-slate-950/40 p-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-3"
             >
-              {method.name}
+              <div>
+                <p className="font-semibold text-white">{method.name}</p>
+                <p className="text-xs text-slate-400">
+                  {accountLookup[method.accountId] ||
+                    t("settings.paymentMethods.noAccount")}
+                </p>
+              </div>
+              <select
+                value={method.accountId || ""}
+                onChange={(event) =>
+                  handleUpdateAccount(method.id, event.target.value)
+                }
+                className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
+              >
+                <option value="">{t("settings.paymentMethods.accountPlaceholder")}</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
             </li>
           ))}
         </ul>

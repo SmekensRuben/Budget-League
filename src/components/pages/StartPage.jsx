@@ -14,14 +14,20 @@ import {
 
 export default function StartPage() {
   const { t } = useTranslation("app");
-  const { profile } = useAuthContext();
+  const { user, profile } = useAuthContext();
   const [household, setHousehold] = useState(null);
   const [members, setMembers] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
     paidByUserId: ""
+  });
+  const [accountFilters, setAccountFilters] = useState({
+    startDate: "",
+    endDate: "",
+    accountIds: []
   });
 
   useEffect(() => {
@@ -76,6 +82,31 @@ export default function StartPage() {
     return () => unsubscribe();
   }, [profile?.householdId]);
 
+  useEffect(() => {
+    if (!user) {
+      setAccounts([]);
+      return;
+    }
+    const accountsRef = collection(db, "users", user.uid, "accounts");
+    const unsubscribe = onSnapshot(accountsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setAccounts(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (accounts.length > 0 && accountFilters.accountIds.length === 0) {
+      setAccountFilters((prev) => ({
+        ...prev,
+        accountIds: accounts.map((account) => account.id)
+      }));
+    }
+  }, [accounts, accountFilters.accountIds.length]);
+
   const buildMemberName = (member) => {
     if (!member) {
       return "";
@@ -119,6 +150,181 @@ export default function StartPage() {
   }, [filteredTransactions]);
 
   const maxValue = Math.max(summary.income, summary.expense, 1);
+
+  const accountLookup = useMemo(() => {
+    return accounts.reduce((acc, account) => {
+      acc[account.id] = account;
+      return acc;
+    }, {});
+  }, [accounts]);
+
+  const selectedAccounts = useMemo(() => {
+    return accountFilters.accountIds
+      .map((id) => accountLookup[id])
+      .filter(Boolean);
+  }, [accountFilters.accountIds, accountLookup]);
+
+  const accountTransactions = useMemo(() => {
+    return transactions.filter((transaction) => transaction.accountId);
+  }, [transactions]);
+
+  const accountChartData = useMemo(() => {
+    if (selectedAccounts.length === 0) {
+      return { dates: [], series: [] };
+    }
+
+    const relevantTransactions = accountTransactions.filter((transaction) => {
+      if (!accountFilters.accountIds.includes(transaction.accountId)) {
+        return false;
+      }
+      if (accountFilters.endDate && transaction.date > accountFilters.endDate) {
+        return false;
+      }
+      return true;
+    });
+
+    const chartTransactions = relevantTransactions.filter((transaction) => {
+      if (
+        accountFilters.startDate &&
+        transaction.date < accountFilters.startDate
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    const datesSet = new Set();
+    if (accountFilters.startDate) {
+      datesSet.add(accountFilters.startDate);
+    }
+    if (accountFilters.endDate) {
+      datesSet.add(accountFilters.endDate);
+    }
+
+    selectedAccounts.forEach((account) => {
+      if (account.openingBalanceDate) {
+        datesSet.add(account.openingBalanceDate);
+      }
+    });
+
+    chartTransactions.forEach((transaction) => {
+      if (transaction.date) {
+        datesSet.add(transaction.date);
+      }
+    });
+
+    const dates = Array.from(datesSet)
+      .sort()
+      .filter((date) => {
+        if (accountFilters.startDate && date < accountFilters.startDate) {
+          return false;
+        }
+        if (accountFilters.endDate && date > accountFilters.endDate) {
+          return false;
+        }
+        return true;
+      });
+
+    const series = selectedAccounts.map((account) => {
+      const accountDates = dates.filter(
+        (date) => !account.openingBalanceDate || date >= account.openingBalanceDate
+      );
+      const accountTransactionsAll = relevantTransactions
+        .filter((transaction) => transaction.accountId === account.id)
+        .sort((a, b) => (a.date || "").localeCompare(b.date || ""));
+
+      const deltas = accountTransactionsAll.reduce((acc, transaction) => {
+        if (!transaction.date) {
+          return acc;
+        }
+        const amount = Number(transaction.amount) || 0;
+        const delta = transaction.type === "income" ? amount : -amount;
+        acc[transaction.date] = (acc[transaction.date] || 0) + delta;
+        return acc;
+      }, {});
+
+      let running = Number(account.openingBalance) || 0;
+      const firstDate = accountDates[0];
+      if (firstDate) {
+        accountTransactionsAll.forEach((transaction) => {
+          if (transaction.date < firstDate) {
+            const amount = Number(transaction.amount) || 0;
+            running += transaction.type === "income" ? amount : -amount;
+          }
+        });
+      }
+
+      const points = accountDates.map((date) => {
+        running += deltas[date] || 0;
+        return { date, balance: running };
+      });
+      return {
+        account,
+        points
+      };
+    });
+
+    return { dates, series };
+  }, [accountFilters, accountTransactions, selectedAccounts]);
+
+  const accountBalanceRange = useMemo(() => {
+    let min = 0;
+    let max = 0;
+    accountChartData.series.forEach((series) => {
+      series.points.forEach((point) => {
+        min = Math.min(min, point.balance);
+        max = Math.max(max, point.balance);
+      });
+    });
+    if (min === max) {
+      max = min + 1;
+    }
+    return { min, max };
+  }, [accountChartData.series]);
+
+  const accountChartLines = useMemo(() => {
+    if (accountChartData.dates.length === 0) {
+      return [];
+    }
+    const width = 1000;
+    const height = 200;
+    const padding = 10;
+    const range = accountBalanceRange.max - accountBalanceRange.min;
+    return accountChartData.series.map((series, index) => {
+      if (series.points.length === 0) {
+        return null;
+      }
+      const points = series.points
+        .map((point) => {
+          const dateIndex = accountChartData.dates.indexOf(point.date);
+          const x =
+            accountChartData.dates.length === 1
+              ? width / 2
+              : (dateIndex / (accountChartData.dates.length - 1)) * width;
+          const y =
+            height -
+            padding -
+            ((point.balance - accountBalanceRange.min) / range) * (height - padding * 2);
+          return `${x},${y}`;
+        })
+        .join(" ");
+      return {
+        id: series.account.id,
+        name: series.account.name,
+        colorIndex: index,
+        points
+      };
+    });
+  }, [accountBalanceRange, accountChartData]);
+
+  const chartColors = [
+    "#f97316",
+    "#38bdf8",
+    "#4ade80",
+    "#f472b6",
+    "#a78bfa",
+    "#facc15"
+  ];
 
   return (
     <AppLayout title={t("pages.start.title")} subtitle={t("pages.start.subtitle")}>
@@ -269,6 +475,153 @@ export default function StartPage() {
                       {t("pages.start.dashboard.summaryDescription", {
                         count: filteredTransactions.length
                       })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+                <div className="rounded-xl border border-white/10 bg-slate-950/40 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {t("pages.start.accounts.title")}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {t("pages.start.accounts.subtitle")}
+                      </p>
+                    </div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
+                      {t("pages.start.accounts.total", {
+                        count: selectedAccounts.length
+                      })}
+                    </p>
+                  </div>
+
+                  {accountChartLines.length === 0 ? (
+                    <p className="mt-4 text-sm text-slate-400">
+                      {t("pages.start.accounts.empty")}
+                    </p>
+                  ) : (
+                    <div className="mt-4 space-y-4">
+                      <div className="h-52 w-full">
+                        <svg
+                          viewBox="0 0 1000 200"
+                          className="h-full w-full"
+                          aria-label={t("pages.start.accounts.chartLabel")}
+                        >
+                          {accountChartLines.map((line, index) =>
+                            line ? (
+                              <polyline
+                                key={line.id}
+                                points={line.points}
+                                fill="none"
+                                stroke={chartColors[index % chartColors.length]}
+                                strokeWidth="3"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            ) : null
+                          )}
+                        </svg>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-slate-300">
+                        {accountChartLines.map((line, index) =>
+                          line ? (
+                            <span key={line.id} className="flex items-center gap-2">
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{
+                                  backgroundColor:
+                                    chartColors[index % chartColors.length]
+                                }}
+                              />
+                              {line.name}
+                            </span>
+                          ) : null
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <label className="flex flex-col gap-2 text-sm">
+                    {t("pages.start.accounts.filters.dateRange")}
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="date"
+                        value={accountFilters.startDate}
+                        onChange={(event) =>
+                          setAccountFilters((prev) => ({
+                            ...prev,
+                            startDate: event.target.value
+                          }))
+                        }
+                        className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                      />
+                      <input
+                        type="date"
+                        value={accountFilters.endDate}
+                        onChange={(event) =>
+                          setAccountFilters((prev) => ({
+                            ...prev,
+                            endDate: event.target.value
+                          }))
+                        }
+                        className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                      />
+                    </div>
+                  </label>
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
+                      {t("pages.start.accounts.filters.accounts")}
+                    </p>
+                    <div className="mt-3 space-y-2 text-sm text-slate-300">
+                      {accounts.length === 0 ? (
+                        <p className="text-xs text-slate-400">
+                          {t("pages.start.accounts.noAccounts")}
+                        </p>
+                      ) : (
+                        accounts.map((account) => (
+                          <label
+                            key={account.id}
+                            className="flex items-center gap-2"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={accountFilters.accountIds.includes(
+                                account.id
+                              )}
+                              onChange={(event) => {
+                                setAccountFilters((prev) => {
+                                  const nextIds = event.target.checked
+                                    ? [...prev.accountIds, account.id]
+                                    : prev.accountIds.filter(
+                                        (id) => id !== account.id
+                                      );
+                                  return { ...prev, accountIds: nextIds };
+                                });
+                              }}
+                              className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400 focus:ring-amber-500/50"
+                            />
+                            {account.name}
+                          </label>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
+                    <p className="font-semibold text-white">
+                      {t("pages.start.accounts.rangeLabel")}
+                    </p>
+                    <p className="mt-2 text-slate-400">
+                      {accountFilters.startDate || accountFilters.endDate
+                        ? t("pages.start.accounts.rangeValue", {
+                            start: accountFilters.startDate || "—",
+                            end: accountFilters.endDate || "—"
+                          })
+                        : t("pages.start.accounts.rangeFallback")}
                     </p>
                   </div>
                 </div>

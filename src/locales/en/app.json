@@ -32,6 +32,21 @@
           "householdUser": "Household user",
           "all": "All"
         }
+      },
+      "accounts": {
+        "title": "Account balance progress",
+        "subtitle": "Track balance changes per account.",
+        "chartLabel": "Account balance chart",
+        "total": "{{count}} accounts",
+        "empty": "No account balances available for the selected range.",
+        "noAccounts": "No accounts available.",
+        "rangeLabel": "Selected range",
+        "rangeFallback": "Select a date range to filter the account balances.",
+        "rangeValue": "{{start}} → {{end}}",
+        "filters": {
+          "dateRange": "Date range",
+          "accounts": "Accounts"
+        }
       }
     },
     "transactions": {
@@ -49,6 +64,7 @@
         "merchant": "Merchant",
         "category": "Category",
         "paymentMethod": "Payment method",
+        "account": "Account",
         "paidBy": "Paid by",
         "description": "Description",
         "descriptionPlaceholder": "Optional description"
@@ -57,6 +73,7 @@
         "merchant": "Select a merchant",
         "category": "Select a category",
         "paymentMethod": "Select a payment method",
+        "account": "Select an account",
         "paidBy": "Select a household member"
       },
       "types": {
@@ -110,6 +127,7 @@
     "tabs": {
       "general": "General",
       "categories": "Categories",
+      "accounts": "Accounts",
       "household": "Household",
       "data": "Data",
       "rules": "Rules",
@@ -149,6 +167,16 @@
       "empty": "No categories yet.",
       "noSubcategories": "No subcategories yet."
     },
+    "accounts": {
+      "title": "Accounts",
+      "subtitle": "Set up account balances and opening dates.",
+      "namePlaceholder": "Account name",
+      "openingBalancePlaceholder": "Opening balance",
+      "openingBalanceLabel": "Opening balance",
+      "openingBalanceValue": "{{amount}}",
+      "add": "Add account",
+      "empty": "No accounts yet."
+    },
     "household": {
       "title": "Household",
       "subtitle": "Manage the people in your household.",
@@ -164,6 +192,8 @@
       "title": "Payment methods",
       "subtitle": "Keep track of the payment methods you use.",
       "placeholder": "Payment method name",
+      "accountPlaceholder": "Link an account",
+      "noAccount": "No account linked",
       "add": "Add method",
       "empty": "No payment methods yet."
     },
