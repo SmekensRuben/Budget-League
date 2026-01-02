@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import {
-  auth,
-  signInWithEmailAndPassword
-} from "../../firebaseConfig";
-import { useHotelContext } from 'contexts/HotelContext';
-
+import { auth, signInWithEmailAndPassword } from "../../firebaseConfig";
+import { useAuthContext } from "../../contexts/AuthContext";
 import { useTranslation } from "react-i18next";
-
 
 export default function LoginPage() {
   const { t } = useTranslation("auth");
@@ -18,9 +13,8 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  const { hotelUid, loading } = useHotelContext();
+  const { user, loading } = useAuthContext();
 
-  
   const from = location.state?.from || "/";
 
   useEffect(() => {
@@ -36,8 +30,7 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      const user = result.user;
+      await signInWithEmailAndPassword(auth, email, password);
 
       if (rememberMe) {
         localStorage.setItem("rememberEmail", email);
@@ -45,18 +38,16 @@ export default function LoginPage() {
         localStorage.removeItem("rememberEmail");
       }
     } catch (err) {
-     setError(t("loginError"));
+      setError(t("loginError"));
       console.error(err);
     }
   };
-  
+
   useEffect(() => {
-    if (auth.currentUser && hotelUid && !loading) {
+    if (user && !loading) {
       navigate(from, { replace: true });
     }
-  }, [from, hotelUid, loading, navigate]);
-
-
+  }, [from, user, loading, navigate]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-50">
@@ -65,12 +56,12 @@ export default function LoginPage() {
           <div className="flex items-center gap-3">
             <img
               src="/assets/breakfast_pilot_logo_black_circle.png"
-              alt="Elite Horizons Logo"
+              alt="Budget League Logo"
               className="h-10 w-10"
             />
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-amber-300/80">
-                Elite Horizons
+                Budget League
               </p>
               <h1 className="text-2xl font-bold">{t("loginTitle")}</h1>
             </div>
@@ -95,7 +86,7 @@ export default function LoginPage() {
             <div className="p-3 rounded-full bg-amber-500/10 border border-amber-400/30">
               <img
                 src="/assets/breakfast_pilot_logo_black_circle.png"
-                alt="Elite Horizons Logo"
+                alt="Budget League Logo"
                 className="h-12 w-12"
               />
             </div>
@@ -106,9 +97,15 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
-            {error && <p className="text-sm text-red-400 bg-red-500/10 border border-red-400/30 rounded-lg p-3">{error}</p>}
+            {error && (
+              <p className="text-sm text-red-400 bg-red-500/10 border border-red-400/30 rounded-lg p-3">
+                {error}
+              </p>
+            )}
             <div className="space-y-2">
-              <label className="text-sm text-slate-300" htmlFor="email">{t("email")}</label>
+              <label className="text-sm text-slate-300" htmlFor="email">
+                {t("email")}
+              </label>
               <input
                 id="email"
                 type="email"
@@ -120,7 +117,9 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm text-slate-300" htmlFor="password">{t("password")}</label>
+              <label className="text-sm text-slate-300" htmlFor="password">
+                {t("password")}
+              </label>
               <input
                 id="password"
                 type="password"
@@ -149,7 +148,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-xs text-center text-slate-500 mt-8">
-            &copy; {new Date().getFullYear()} Elite Horizons
+            &copy; {new Date().getFullYear()} Budget League
           </p>
         </motion.div>
       </div>

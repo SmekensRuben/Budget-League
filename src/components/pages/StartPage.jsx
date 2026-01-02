@@ -1,9 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { auth, signOut } from "../../firebaseConfig";
-import { useHotelContext } from "../../contexts/HotelContext";
 
 export default function StartPage() {
-  const { hotelName } = useHotelContext();
   const navigate = useNavigate();
 
   const handleLogout = async () => {
@@ -22,16 +20,14 @@ export default function StartPage() {
           <div className="flex items-center gap-3">
             <img
               src="/assets/breakfast_pilot_logo_black_circle.png"
-              alt="Elite Horizons Logo"
+              alt="Budget League Logo"
               className="h-10 w-10"
             />
             <div>
               <p className="text-xs uppercase tracking-[0.25em] text-amber-300/80">
-                Elite Horizons
+                Budget League
               </p>
-              <h1 className="text-2xl font-bold">
-                {hotelName ? `Welkom, ${hotelName}` : "Welkom"}
-              </h1>
+              <h1 className="text-2xl font-bold">Welkom</h1>
             </div>
           </div>
           <button
@@ -48,10 +44,13 @@ export default function StartPage() {
           <p className="text-xs uppercase tracking-[0.35em] text-amber-300/80">
             Clean start
           </p>
-          <h2 className="mt-4 text-3xl font-bold">De webapp is nu leeg en klaar om op te bouwen.</h2>
+          <h2 className="mt-4 text-3xl font-bold">
+            De Budget League webapp is leeg en klaar om op te bouwen.
+          </h2>
           <p className="mt-4 text-slate-400">
-            Alle functionaliteit is verwijderd, maar de styling en databaseverbinding blijven beschikbaar.
-            Vanaf hier kun je nieuwe modules stap voor stap toevoegen.
+            Alle functionaliteit is verwijderd, maar de styling en
+            authenticatie blijven beschikbaar. Vanaf hier kun je nieuwe modules
+            stap voor stap toevoegen.
           </p>
         </div>
       </main>
