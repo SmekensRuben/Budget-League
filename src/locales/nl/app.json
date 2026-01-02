@@ -32,6 +32,21 @@
           "householdUser": "Householdlid",
           "all": "Alles"
         }
+      },
+      "accounts": {
+        "title": "Voortgang accountbalansen",
+        "subtitle": "Volg de balanswijzigingen per account.",
+        "chartLabel": "Accountbalansgrafiek",
+        "total": "{{count}} accounts",
+        "empty": "Geen accountbalansen beschikbaar voor deze periode.",
+        "noAccounts": "Geen accounts beschikbaar.",
+        "rangeLabel": "Geselecteerde periode",
+        "rangeFallback": "Selecteer een datumbereik om te filteren.",
+        "rangeValue": "{{start}} → {{end}}",
+        "filters": {
+          "dateRange": "Datumbereik",
+          "accounts": "Accounts"
+        }
       }
     },
     "transactions": {
@@ -49,6 +64,7 @@
         "merchant": "Merchant",
         "category": "Categorie",
         "paymentMethod": "Betaalmethode",
+        "account": "Account",
         "paidBy": "Betaald door",
         "description": "Omschrijving",
         "descriptionPlaceholder": "Optionele omschrijving"
@@ -57,6 +73,7 @@
         "merchant": "Kies een merchant",
         "category": "Kies een categorie",
         "paymentMethod": "Kies een betaalmethode",
+        "account": "Kies een account",
         "paidBy": "Kies een householdlid"
       },
       "types": {
@@ -110,6 +127,7 @@
     "tabs": {
       "general": "Algemeen",
       "categories": "Categorieën",
+      "accounts": "Accounts",
       "household": "Household",
       "data": "Data",
       "rules": "Regels",
@@ -149,6 +167,16 @@
       "empty": "Nog geen categorieën.",
       "noSubcategories": "Nog geen subcategorieën."
     },
+    "accounts": {
+      "title": "Accounts",
+      "subtitle": "Stel beginbalansen en startdata in.",
+      "namePlaceholder": "Accountnaam",
+      "openingBalancePlaceholder": "Beginbalans",
+      "openingBalanceLabel": "Beginbalans",
+      "openingBalanceValue": "{{amount}}",
+      "add": "Account toevoegen",
+      "empty": "Nog geen accounts."
+    },
     "household": {
       "title": "Household",
       "subtitle": "Beheer de mensen in je household.",
@@ -164,6 +192,8 @@
       "title": "Betaalmethodes",
       "subtitle": "Hou bij welke betaalmethodes je gebruikt.",
       "placeholder": "Naam van betaalmethode",
+      "accountPlaceholder": "Koppel een account",
+      "noAccount": "Geen account gekoppeld",
       "add": "Betaalmethode toevoegen",
       "empty": "Nog geen betaalmethodes."
     },

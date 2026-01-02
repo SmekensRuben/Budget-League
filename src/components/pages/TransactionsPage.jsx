@@ -23,6 +23,7 @@ const buildDefaultFormState = ({ profile, user }) => ({
   description: "",
   category: "",
   paymentMethod: "",
+  accountId: "",
   paidByUserId: user?.uid || "",
   type: "expense"
 });
@@ -51,6 +52,7 @@ export default function TransactionsPage() {
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [paymentMethods, setPaymentMethods] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [merchants, setMerchants] = useState([]);
   const [household, setHousehold] = useState(null);
   const [members, setMembers] = useState([]);
@@ -83,6 +85,7 @@ export default function TransactionsPage() {
     }
     const categoriesRef = collection(db, "users", user.uid, "categories");
     const methodsRef = collection(db, "users", user.uid, "paymentMethods");
+    const accountsRef = collection(db, "users", user.uid, "accounts");
     const merchantsRef = collection(db, "users", user.uid, "merchants");
 
     const unsubscribeCategories = onSnapshot(categoriesRef, (snapshot) => {
@@ -101,6 +104,14 @@ export default function TransactionsPage() {
       setPaymentMethods(data);
     });
 
+    const unsubscribeAccounts = onSnapshot(accountsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setAccounts(data);
+    });
+
     const unsubscribeMerchants = onSnapshot(merchantsRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -112,6 +123,7 @@ export default function TransactionsPage() {
     return () => {
       unsubscribeCategories();
       unsubscribeMethods();
+      unsubscribeAccounts();
       unsubscribeMerchants();
     };
   }, [user]);
@@ -225,6 +237,15 @@ export default function TransactionsPage() {
   const handleChange = (event) => {
     const { name, value } = event.target;
     setHasEditedForm(true);
+    if (name === "paymentMethod") {
+      const selectedMethod = paymentMethods.find((method) => method.name === value);
+      setFormState((prev) => ({
+        ...prev,
+        paymentMethod: value,
+        accountId: selectedMethod?.accountId || ""
+      }));
+      return;
+    }
     setFormState((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -286,6 +307,9 @@ export default function TransactionsPage() {
         (item) => item.name === transaction.paymentMethod
       )
         ? transaction.paymentMethod
+        : "",
+      accountId: accounts.some((item) => item.id === transaction.accountId)
+        ? transaction.accountId
         : ""
     });
     setHasEditedForm(true);
@@ -405,7 +429,9 @@ export default function TransactionsPage() {
                       {t("pages.transactions.placeholders.merchant")}
                     </option>
                     {merchants.map((merchant) => (
-                      <option key={merchant.id} value={merchant.name} />
+                      <option key={merchant.id} value={merchant.name}>
+                        {merchant.name}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -422,7 +448,9 @@ export default function TransactionsPage() {
                       {t("pages.transactions.placeholders.category")}
                     </option>
                     {categoryOptions.map((category) => (
-                      <option key={category.id} value={category.name} />
+                      <option key={category.id} value={category.name}>
+                        {category.name}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -439,7 +467,28 @@ export default function TransactionsPage() {
                       {t("pages.transactions.placeholders.paymentMethod")}
                     </option>
                     {paymentMethods.map((method) => (
-                      <option key={method.id} value={method.name} />
+                      <option key={method.id} value={method.name}>
+                        {method.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex flex-col gap-2 text-sm">
+                  {t("pages.transactions.fields.account")}
+                  <select
+                    name="accountId"
+                    value={formState.accountId}
+                    onChange={handleChange}
+                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                    disabled={!profile?.householdId}
+                  >
+                    <option value="">
+                      {t("pages.transactions.placeholders.account")}
+                    </option>
+                    {accounts.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.name}
+                      </option>
                     ))}
                   </select>
                 </label>
