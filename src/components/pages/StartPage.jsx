@@ -52,6 +52,12 @@ export default function StartPage() {
             authenticatie blijven beschikbaar. Vanaf hier kun je nieuwe modules
             stap voor stap toevoegen.
           </p>
+          <button
+            onClick={() => navigate("/transactions")}
+            className="mt-8 inline-flex items-center justify-center rounded-xl bg-amber-500/90 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+          >
+            Transactions invoeren
+          </button>
         </div>
       </main>
     </div>
