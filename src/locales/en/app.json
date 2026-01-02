@@ -18,26 +18,56 @@
       "cta": "Add transactions"
     },
     "transactions": {
-      "title": "Add transactions",
+      "title": "Transactions",
       "subtitle": "Only available when you are part of a household.",
+      "form": {
+        "title": "Add a transaction",
+        "subtitle": "Capture the essentials and keep household totals up to date."
+      },
       "fields": {
         "date": "Date",
         "amount": "Amount",
+        "type": "Type",
         "currency": "Currency",
         "merchant": "Merchant",
         "category": "Category",
         "paymentMethod": "Payment method",
-        "paidBy": "Paid by user ID",
+        "paidBy": "Paid by",
         "description": "Description",
         "descriptionPlaceholder": "Optional description"
       },
+      "placeholders": {
+        "merchant": "Select a merchant",
+        "category": "Select a category",
+        "paymentMethod": "Select a payment method",
+        "paidBy": "Select a household member"
+      },
+      "types": {
+        "expense": "Expense",
+        "income": "Income"
+      },
       "actions": {
         "save": "Save transaction",
-        "reset": "Reset form"
+        "reset": "Reset form",
+        "toggleForm": "Toggle transaction form"
       },
-      "requiredFields": "Required fields",
-      "latestEntry": "Latest entry",
-      "noEntry": "No transaction saved yet.",
+      "filters": {
+        "dateRange": "Date range",
+        "type": "Income / expense",
+        "householdUser": "Household user",
+        "category": "Category",
+        "all": "All"
+      },
+      "list": {
+        "title": "Transaction history",
+        "subtitle": "Review and filter household entries.",
+        "empty": "No transactions match these filters yet.",
+        "unnamed": "Unnamed merchant",
+        "noCategory": "No category",
+        "noPaymentMethod": "No payment method",
+        "noPaidBy": "No household member",
+        "noType": "No type"
+      },
       "noHousehold": "Join or create a household before adding transactions.",
       "saved": "Transaction saved in your household."
     },
@@ -62,6 +92,7 @@
       "data": "Data",
       "rules": "Rules",
       "paymentMethods": "Payment Methods",
+      "merchants": "Merchants",
       "privacy": "Privacy",
       "community": "Community"
     },
@@ -113,6 +144,14 @@
       "placeholder": "Payment method name",
       "add": "Add method",
       "empty": "No payment methods yet."
+    },
+    "merchants": {
+      "title": "Merchants",
+      "subtitle": "Manage the merchants you frequently use.",
+      "placeholder": "Merchant name",
+      "add": "Add merchant",
+      "remove": "Remove",
+      "empty": "No merchants yet."
     }
   }
 }
