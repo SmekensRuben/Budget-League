@@ -4,6 +4,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import LoginPage from "./components/pages/LoginPage.jsx";
 import ProtectedRoute from "./components/shared/ProtectedRoute.jsx";
 import StartPage from "./components/pages/StartPage.jsx";
+import TransactionsPage from "./components/pages/TransactionsPage.jsx";
 
 export default function AppRouter() {
   return (
@@ -14,6 +15,14 @@ export default function AppRouter() {
         element={
           <ProtectedRoute>
             <StartPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transactions"
+        element={
+          <ProtectedRoute>
+            <TransactionsPage />
           </ProtectedRoute>
         }
       />
