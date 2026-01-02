@@ -1,5 +1,6 @@
 {
   "nav": {
+    "home": "Home",
     "transactions": "Transactions",
     "budgets": "Budgets",
     "insights": "Insights",
@@ -15,7 +16,23 @@
       "kicker": "Clean start",
       "heading": "Budget League is ready to be filled.",
       "description": "You can start adding modules and building out the household experience step by step.",
-      "cta": "Add transactions"
+      "cta": "Add transactions",
+      "dashboard": {
+        "title": "Household dashboard",
+        "subtitle": "Track income and expenses at a glance.",
+        "noHousehold": "Join or create a household to see your dashboard.",
+        "chartTitle": "Income vs expenses",
+        "householdFallback": "Household",
+        "incomeLabel": "Income",
+        "expenseLabel": "Expenses",
+        "summaryTitle": "Activity summary",
+        "summaryDescription": "{{count}} transactions in this selection.",
+        "filters": {
+          "dateRange": "Date range",
+          "householdUser": "Household user",
+          "all": "All"
+        }
+      }
     },
     "transactions": {
       "title": "Transactions",
@@ -48,7 +65,10 @@
       },
       "actions": {
         "save": "Save transaction",
+        "update": "Update transaction",
         "reset": "Reset form",
+        "edit": "Edit",
+        "delete": "Delete",
         "toggleForm": "Toggle transaction form"
       },
       "filters": {
@@ -69,7 +89,9 @@
         "noType": "No type"
       },
       "noHousehold": "Join or create a household before adding transactions.",
-      "saved": "Transaction saved in your household."
+      "saved": "Transaction saved in your household.",
+      "updated": "Transaction updated.",
+      "deleted": "Transaction deleted."
     },
     "budgets": {
       "title": "Budgets",

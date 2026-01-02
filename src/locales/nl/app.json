@@ -1,5 +1,6 @@
 {
   "nav": {
+    "home": "Home",
     "transactions": "Transacties",
     "budgets": "Budgetten",
     "insights": "Inzichten",
@@ -15,7 +16,23 @@
       "kicker": "Clean start",
       "heading": "Budget League is klaar om opgebouwd te worden.",
       "description": "Je kunt stap voor stap modules toevoegen en de household-ervaring uitbouwen.",
-      "cta": "Transacties toevoegen"
+      "cta": "Transacties toevoegen",
+      "dashboard": {
+        "title": "Household dashboard",
+        "subtitle": "Bekijk inkomsten en uitgaven in één oogopslag.",
+        "noHousehold": "Word lid van een household om je dashboard te zien.",
+        "chartTitle": "Inkomsten vs uitgaven",
+        "householdFallback": "Household",
+        "incomeLabel": "Inkomsten",
+        "expenseLabel": "Uitgaven",
+        "summaryTitle": "Activiteitsoverzicht",
+        "summaryDescription": "{{count}} transacties in deze selectie.",
+        "filters": {
+          "dateRange": "Datumbereik",
+          "householdUser": "Householdlid",
+          "all": "Alles"
+        }
+      }
     },
     "transactions": {
       "title": "Transacties",
@@ -48,7 +65,10 @@
       },
       "actions": {
         "save": "Transactie opslaan",
+        "update": "Transactie bijwerken",
         "reset": "Formulier leegmaken",
+        "edit": "Bewerken",
+        "delete": "Verwijderen",
         "toggleForm": "Transactieformulier tonen"
       },
       "filters": {
@@ -69,7 +89,9 @@
         "noType": "Geen type"
       },
       "noHousehold": "Maak of word lid van een household om transacties toe te voegen.",
-      "saved": "Transactie opgeslagen in je household."
+      "saved": "Transactie opgeslagen in je household.",
+      "updated": "Transactie bijgewerkt.",
+      "deleted": "Transactie verwijderd."
     },
     "budgets": {
       "title": "Budgetten",

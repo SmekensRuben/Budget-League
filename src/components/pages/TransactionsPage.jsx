@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import AppLayout from "../shared/AppLayout";
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -26,6 +27,18 @@ const buildDefaultFormState = ({ profile, user }) => ({
   type: "expense"
 });
 
+const buildMemberName = (member) => {
+  if (!member) {
+    return "";
+  }
+  const name = [member.firstName, member.lastName].filter(Boolean).join(" ");
+  const displayName =
+    member.displayName && !member.displayName.includes("@")
+      ? member.displayName
+      : "";
+  return name || displayName || member.id || "";
+};
+
 export default function TransactionsPage() {
   const { t } = useTranslation("app");
   const { user, profile } = useAuthContext();
@@ -41,6 +54,7 @@ export default function TransactionsPage() {
   const [merchants, setMerchants] = useState([]);
   const [household, setHousehold] = useState(null);
   const [members, setMembers] = useState([]);
+  const [editingTransactionId, setEditingTransactionId] = useState("");
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
@@ -156,7 +170,7 @@ export default function TransactionsPage() {
 
   const memberLookup = useMemo(() => {
     return members.reduce((acc, member) => {
-      acc[member.id] = member.displayName || member.email || member.id;
+      acc[member.id] = buildMemberName(member);
       return acc;
     }, {});
   }, [members]);
@@ -169,7 +183,7 @@ export default function TransactionsPage() {
       return [
         {
           id: user.uid,
-          displayName: user.displayName || user.email || user.uid
+          displayName: buildMemberName(user)
         }
       ];
     }
@@ -218,6 +232,7 @@ export default function TransactionsPage() {
     setFormState(buildDefaultFormState({ profile, user }));
     setHasEditedForm(false);
     setStatusMessage("");
+    setEditingTransactionId("");
   };
 
   const handleSubmit = async (event) => {
@@ -230,20 +245,65 @@ export default function TransactionsPage() {
       return;
     }
 
-    const transactionRef = doc(
-      collection(db, "households", profile.householdId, "transactions")
-    );
+    const transactionRef = editingTransactionId
+      ? doc(
+          db,
+          "households",
+          profile.householdId,
+          "transactions",
+          editingTransactionId
+        )
+      : doc(collection(db, "households", profile.householdId, "transactions"));
     const payload = {
       ...formState,
-      transactionId: transactionRef.id,
-      createdAt: serverTimestamp()
+      transactionId: transactionRef.id
     };
 
-    await setDoc(transactionRef, payload);
-    setStatusMessage(t("pages.transactions.saved"));
+    if (editingTransactionId) {
+      await setDoc(transactionRef, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
+      setStatusMessage(t("pages.transactions.updated"));
+    } else {
+      await setDoc(transactionRef, { ...payload, createdAt: serverTimestamp() });
+      setStatusMessage(t("pages.transactions.saved"));
+    }
     setFormState(buildDefaultFormState({ profile, user }));
     setHasEditedForm(false);
     setFormExpanded(false);
+    setEditingTransactionId("");
+  };
+
+  const handleEdit = (transaction) => {
+    setFormState({
+      ...buildDefaultFormState({ profile, user }),
+      ...transaction,
+      merchant: merchants.some((item) => item.name === transaction.merchant)
+        ? transaction.merchant
+        : "",
+      category: categories.some((item) => item.name === transaction.category)
+        ? transaction.category
+        : "",
+      paymentMethod: paymentMethods.some(
+        (item) => item.name === transaction.paymentMethod
+      )
+        ? transaction.paymentMethod
+        : ""
+    });
+    setHasEditedForm(true);
+    setFormExpanded(true);
+    setEditingTransactionId(transaction.id);
+  };
+
+  const handleDelete = async (transactionId) => {
+    if (!profile?.householdId || !transactionId) {
+      return;
+    }
+    await deleteDoc(
+      doc(db, "households", profile.householdId, "transactions", transactionId)
+    );
+    setStatusMessage(t("pages.transactions.deleted"));
+    if (editingTransactionId === transactionId) {
+      handleReset();
+    }
   };
 
   return (
@@ -333,55 +393,55 @@ export default function TransactionsPage() {
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                   {t("pages.transactions.fields.merchant")}*
-                  <input
-                    list="merchant-options"
+                  <select
                     name="merchant"
                     value={formState.merchant}
                     onChange={handleChange}
                     className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    placeholder={t("pages.transactions.placeholders.merchant")}
                     required
                     disabled={!profile?.householdId}
-                  />
-                  <datalist id="merchant-options">
+                  >
+                    <option value="">
+                      {t("pages.transactions.placeholders.merchant")}
+                    </option>
                     {merchants.map((merchant) => (
                       <option key={merchant.id} value={merchant.name} />
                     ))}
-                  </datalist>
+                  </select>
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                   {t("pages.transactions.fields.category")}
-                  <input
-                    list="category-options"
+                  <select
                     name="category"
                     value={formState.category}
                     onChange={handleChange}
                     className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    placeholder={t("pages.transactions.placeholders.category")}
                     disabled={!profile?.householdId}
-                  />
-                  <datalist id="category-options">
+                  >
+                    <option value="">
+                      {t("pages.transactions.placeholders.category")}
+                    </option>
                     {categoryOptions.map((category) => (
                       <option key={category.id} value={category.name} />
                     ))}
-                  </datalist>
+                  </select>
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                   {t("pages.transactions.fields.paymentMethod")}
-                  <input
-                    list="payment-method-options"
+                  <select
                     name="paymentMethod"
                     value={formState.paymentMethod}
                     onChange={handleChange}
                     className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    placeholder={t("pages.transactions.placeholders.paymentMethod")}
                     disabled={!profile?.householdId}
-                  />
-                  <datalist id="payment-method-options">
+                  >
+                    <option value="">
+                      {t("pages.transactions.placeholders.paymentMethod")}
+                    </option>
                     {paymentMethods.map((method) => (
                       <option key={method.id} value={method.name} />
                     ))}
-                  </datalist>
+                  </select>
                 </label>
                 <label className="flex flex-col gap-2 text-sm">
                   {t("pages.transactions.fields.paidBy")}*
@@ -398,7 +458,7 @@ export default function TransactionsPage() {
                     </option>
                     {paidByOptions.map((member) => (
                       <option key={member.id} value={member.id}>
-                        {member.displayName || member.email || member.id}
+                        {buildMemberName(member)}
                       </option>
                     ))}
                   </select>
@@ -427,7 +487,9 @@ export default function TransactionsPage() {
                   disabled={!isFormValid || !profile?.householdId}
                   className="rounded-xl bg-amber-500/90 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
                 >
-                  {t("pages.transactions.actions.save")}
+                  {editingTransactionId
+                    ? t("pages.transactions.actions.update")
+                    : t("pages.transactions.actions.save")}
                 </button>
                 <button
                   type="button"
@@ -583,6 +645,22 @@ export default function TransactionsPage() {
                         transaction.paidByUserId ||
                         t("pages.transactions.list.noPaidBy")}
                     </p>
+                    <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(transaction)}
+                        className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                      >
+                        {t("pages.transactions.actions.edit")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(transaction.id)}
+                        className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
+                      >
+                        {t("pages.transactions.actions.delete")}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))

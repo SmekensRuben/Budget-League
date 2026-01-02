@@ -43,6 +43,9 @@ export default function AppLayout({ title, subtitle, children }) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <NavLink to="/" className={navLinkClasses}>
+              {t("nav.home")}
+            </NavLink>
             <NavLink to="/transactions" className={navLinkClasses}>
               {t("nav.transactions")}
             </NavLink>
