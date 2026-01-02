@@ -3,17 +3,17 @@ import { initReactI18next } from "react-i18next";
 
 import authNL from "./locales/nl/auth.json";
 import authEN from "./locales/en/auth.json";
-import authFR from "./locales/fr/auth.json";
+import appNL from "./locales/nl/app.json";
+import appEN from "./locales/en/app.json";
 
 const resources = {
   nl: {
-    auth: authNL
+    auth: authNL,
+    app: appNL
   },
   en: {
-    auth: authEN
-  },
-  fr: {
-    auth: authFR
+    auth: authEN,
+    app: appEN
   }
 };
 
@@ -23,8 +23,8 @@ i18n
     resources,
     lng: localStorage.getItem("lang") || "nl",
     fallbackLng: "nl",
-    ns: ["auth"],
-    defaultNS: "auth",
+    ns: ["auth", "app"],
+    defaultNS: "app",
     interpolation: {
       escapeValue: false // React ontsmet al
     }
