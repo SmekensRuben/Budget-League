@@ -6,6 +6,7 @@ import {
   addDoc,
   collection,
   db,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -34,6 +35,7 @@ export default function SettingsPage() {
       { id: "data", label: t("settings.tabs.data") },
       { id: "rules", label: t("settings.tabs.rules") },
       { id: "paymentMethods", label: t("settings.tabs.paymentMethods") },
+      { id: "merchants", label: t("settings.tabs.merchants") },
       { id: "privacy", label: t("settings.tabs.privacy") },
       { id: "community", label: t("settings.tabs.community") }
     ],
@@ -77,6 +79,7 @@ export default function SettingsPage() {
           {activeTab === "paymentMethods" ? (
             <PaymentMethodsTab user={user} />
           ) : null}
+          {activeTab === "merchants" ? <MerchantsTab user={user} /> : null}
           {activeTab === "data" ? (
             <PlaceholderTab title={t("settings.tabs.data")} />
           ) : null}
@@ -590,6 +593,96 @@ function PaymentMethodsTab({ user }) {
               className="rounded-xl border border-white/10 bg-slate-950/40 p-3"
             >
               {method.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function MerchantsTab({ user }) {
+  const { t } = useTranslation("app");
+  const [merchants, setMerchants] = useState([]);
+  const [name, setName] = useState("");
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    const merchantsRef = collection(db, "users", user.uid, "merchants");
+    const unsubscribe = onSnapshot(merchantsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setMerchants(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleAdd = async (event) => {
+    event.preventDefault();
+    if (!user || !name.trim()) {
+      return;
+    }
+    await addDoc(collection(db, "users", user.uid, "merchants"), {
+      name: name.trim(),
+      createdAt: serverTimestamp()
+    });
+    setName("");
+  };
+
+  const handleRemove = async (merchantId) => {
+    if (!user) {
+      return;
+    }
+    await deleteDoc(doc(db, "users", user.uid, "merchants", merchantId));
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">{t("settings.merchants.title")}</h2>
+        <p className="text-sm text-slate-400">
+          {t("settings.merchants.subtitle")}
+        </p>
+      </div>
+
+      <form className="flex flex-col gap-3 md:flex-row" onSubmit={handleAdd}>
+        <input
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          className="flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+          placeholder={t("settings.merchants.placeholder")}
+        />
+        <button
+          type="submit"
+          className="rounded-xl bg-amber-500/90 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+        >
+          {t("settings.merchants.add")}
+        </button>
+      </form>
+
+      {merchants.length === 0 ? (
+        <p className="text-sm text-slate-400">
+          {t("settings.merchants.empty")}
+        </p>
+      ) : (
+        <ul className="space-y-2 text-sm text-slate-300">
+          {merchants.map((merchant) => (
+            <li
+              key={merchant.id}
+              className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-3"
+            >
+              <span>{merchant.name}</span>
+              <button
+                type="button"
+                onClick={() => handleRemove(merchant.id)}
+                className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
+              >
+                {t("settings.merchants.remove")}
+              </button>
             </li>
           ))}
         </ul>

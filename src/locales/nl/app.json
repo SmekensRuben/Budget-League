@@ -18,26 +18,56 @@
       "cta": "Transacties toevoegen"
     },
     "transactions": {
-      "title": "Transacties invoeren",
+      "title": "Transacties",
       "subtitle": "Alleen beschikbaar wanneer je in een household zit.",
+      "form": {
+        "title": "Transactie toevoegen",
+        "subtitle": "Leg de essentials vast en hou je household up-to-date."
+      },
       "fields": {
         "date": "Datum",
         "amount": "Bedrag",
+        "type": "Type",
         "currency": "Valuta",
         "merchant": "Merchant",
         "category": "Categorie",
-        "paymentMethod": "Payment method",
-        "paidBy": "Betaald door user ID",
+        "paymentMethod": "Betaalmethode",
+        "paidBy": "Betaald door",
         "description": "Omschrijving",
         "descriptionPlaceholder": "Optionele omschrijving"
       },
+      "placeholders": {
+        "merchant": "Kies een merchant",
+        "category": "Kies een categorie",
+        "paymentMethod": "Kies een betaalmethode",
+        "paidBy": "Kies een householdlid"
+      },
+      "types": {
+        "expense": "Expense",
+        "income": "Income"
+      },
       "actions": {
         "save": "Transactie opslaan",
-        "reset": "Formulier leegmaken"
+        "reset": "Formulier leegmaken",
+        "toggleForm": "Transactieformulier tonen"
       },
-      "requiredFields": "Vereiste velden",
-      "latestEntry": "Laatste invoer",
-      "noEntry": "Nog geen transactie opgeslagen.",
+      "filters": {
+        "dateRange": "Periode",
+        "type": "Income / expense",
+        "householdUser": "Householdlid",
+        "category": "Categorie",
+        "all": "Alles"
+      },
+      "list": {
+        "title": "Transactielijst",
+        "subtitle": "Bekijk en filter household transacties.",
+        "empty": "Geen transacties gevonden voor deze filters.",
+        "unnamed": "Onbekende merchant",
+        "noCategory": "Geen categorie",
+        "noPaymentMethod": "Geen betaalmethode",
+        "noPaidBy": "Geen householdlid",
+        "noType": "Geen type"
+      },
       "noHousehold": "Maak of word lid van een household om transacties toe te voegen.",
       "saved": "Transactie opgeslagen in je household."
     },
@@ -61,7 +91,8 @@
       "household": "Household",
       "data": "Data",
       "rules": "Regels",
-      "paymentMethods": "Payment methods",
+      "paymentMethods": "Betaalmethodes",
+      "merchants": "Merchants",
       "privacy": "Privacy",
       "community": "Community"
     },
@@ -108,11 +139,19 @@
       "remove": "Verwijderen"
     },
     "paymentMethods": {
-      "title": "Payment methods",
+      "title": "Betaalmethodes",
       "subtitle": "Hou bij welke betaalmethodes je gebruikt.",
       "placeholder": "Naam van betaalmethode",
       "add": "Betaalmethode toevoegen",
       "empty": "Nog geen betaalmethodes."
+    },
+    "merchants": {
+      "title": "Merchants",
+      "subtitle": "Beheer de merchants die je vaak gebruikt.",
+      "placeholder": "Naam van merchant",
+      "add": "Merchant toevoegen",
+      "remove": "Verwijderen",
+      "empty": "Nog geen merchants."
     }
   }
 }
