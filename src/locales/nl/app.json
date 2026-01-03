@@ -25,6 +25,12 @@
         "householdFallback": "Household",
         "incomeLabel": "Inkomsten",
         "expenseLabel": "Uitgaven",
+        "expensesTitle": "Expense-overzicht",
+        "expensesSubtitle": "Essentieel vs discretionair.",
+        "expensesTotal": "{{amount}} totaal",
+        "expensesEmpty": "Nog geen uitgaven",
+        "expensesChartLabel": "Expense-overzicht grafiek",
+        "expensesCenterLabel": "Totale uitgaven",
         "summaryTitle": "Activiteitsoverzicht",
         "summaryDescription": "{{count}} transacties in deze selectie.",
         "filters": {

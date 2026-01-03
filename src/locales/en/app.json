@@ -25,6 +25,12 @@
         "householdFallback": "Household",
         "incomeLabel": "Income",
         "expenseLabel": "Expenses",
+        "expensesTitle": "Expense breakdown",
+        "expensesSubtitle": "Essential vs discretionary spending.",
+        "expensesTotal": "{{amount}} total",
+        "expensesEmpty": "No expenses yet",
+        "expensesChartLabel": "Expense breakdown chart",
+        "expensesCenterLabel": "Total expenses",
         "summaryTitle": "Activity summary",
         "summaryDescription": "{{count}} transactions in this selection.",
         "filters": {
