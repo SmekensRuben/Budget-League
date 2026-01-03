@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router-dom";
 import AppLayout from "../shared/AppLayout";
 import {
   collection,
   deleteDoc,
   doc,
-  getDoc,
   onSnapshot,
   orderBy,
   query,
@@ -14,19 +14,9 @@ import {
   db
 } from "../../firebaseConfig";
 import { useAuthContext } from "../../contexts/AuthContext";
-
-const buildDefaultFormState = ({ profile, user }) => ({
-  date: "",
-  amount: "",
-  currency: profile?.currency || "EUR",
-  merchant: "",
-  description: "",
-  category: "",
-  paymentMethod: "",
-  accountId: "",
-  paidByUserId: user?.uid || "",
-  type: "expense"
-});
+import TransactionForm from "../transactions/TransactionForm";
+import useTransactionData from "../transactions/useTransactionData";
+import { buildDefaultFormState } from "../transactions/transactionFormState";
 
 const buildMemberName = (member) => {
   if (!member) {
@@ -43,120 +33,43 @@ const buildMemberName = (member) => {
 export default function TransactionsPage() {
   const { t } = useTranslation("app");
   const { user, profile } = useAuthContext();
-  const [formExpanded, setFormExpanded] = useState(false);
-  const [hasEditedForm, setHasEditedForm] = useState(false);
   const [formState, setFormState] = useState(() =>
     buildDefaultFormState({ profile, user })
   );
   const [statusMessage, setStatusMessage] = useState("");
   const [transactions, setTransactions] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [paymentMethods, setPaymentMethods] = useState([]);
-  const [accounts, setAccounts] = useState([]);
-  const [merchants, setMerchants] = useState([]);
-  const [household, setHousehold] = useState(null);
-  const [members, setMembers] = useState([]);
   const [editingTransactionId, setEditingTransactionId] = useState("");
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
     type: "",
     paidByUserId: "",
-    category: ""
+    categoryId: ""
   });
 
+  const { categories, paymentMethods, accounts, merchants, household, members } =
+    useTransactionData({ user, profile });
+
   const requiredFields = useMemo(
-    () => ["date", "amount", "currency", "merchant", "paidByUserId", "type"],
+    () => [
+      "date",
+      "amount",
+      "currency",
+      "merchant",
+      "paidByUserId",
+      "type",
+      "categoryId",
+      "subcategoryId",
+      "spendType"
+    ],
     []
   );
 
   useEffect(() => {
-    if (!hasEditedForm) {
+    if (!editingTransactionId) {
       setFormState(buildDefaultFormState({ profile, user }));
     }
-  }, [profile, user, hasEditedForm]);
-
-  useEffect(() => {
-    if (!user) {
-      setCategories([]);
-      setPaymentMethods([]);
-      setMerchants([]);
-      return;
-    }
-    const categoriesRef = collection(db, "users", user.uid, "categories");
-    const methodsRef = collection(db, "users", user.uid, "paymentMethods");
-    const accountsRef = collection(db, "users", user.uid, "accounts");
-    const merchantsRef = collection(db, "users", user.uid, "merchants");
-
-    const unsubscribeCategories = onSnapshot(categoriesRef, (snapshot) => {
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
-      setCategories(data);
-    });
-
-    const unsubscribeMethods = onSnapshot(methodsRef, (snapshot) => {
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
-      setPaymentMethods(data);
-    });
-
-    const unsubscribeAccounts = onSnapshot(accountsRef, (snapshot) => {
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
-      setAccounts(data);
-    });
-
-    const unsubscribeMerchants = onSnapshot(merchantsRef, (snapshot) => {
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
-      setMerchants(data);
-    });
-
-    return () => {
-      unsubscribeCategories();
-      unsubscribeMethods();
-      unsubscribeAccounts();
-      unsubscribeMerchants();
-    };
-  }, [user]);
-
-  useEffect(() => {
-    if (!profile?.householdId) {
-      setHousehold(null);
-      setMembers([]);
-      return;
-    }
-    const householdRef = doc(db, "households", profile.householdId);
-    const unsubscribe = onSnapshot(householdRef, (snap) => {
-      setHousehold(snap.exists() ? { id: snap.id, ...snap.data() } : null);
-    });
-    return () => unsubscribe();
-  }, [profile?.householdId]);
-
-  useEffect(() => {
-    const fetchMembers = async () => {
-      if (!household?.memberIds?.length) {
-        setMembers([]);
-        return;
-      }
-      const memberDocs = await Promise.all(
-        household.memberIds.map((memberId) => getDoc(doc(db, "users", memberId)))
-      );
-      const data = memberDocs
-        .filter((docSnap) => docSnap.exists())
-        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
-      setMembers(data);
-    };
-    fetchMembers();
-  }, [household?.memberIds]);
+  }, [profile, user, editingTransactionId]);
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -189,7 +102,10 @@ export default function TransactionsPage() {
 
   const paidByOptions = useMemo(() => {
     if (members.length > 0) {
-      return members;
+      return members.map((member) => ({
+        ...member,
+        displayName: buildMemberName(member)
+      }));
     }
     if (user) {
       return [
@@ -201,6 +117,22 @@ export default function TransactionsPage() {
     }
     return [];
   }, [members, user]);
+
+  const categoryLookup = useMemo(() => {
+    return categories.reduce((acc, category) => {
+      acc[category.id] = category.name;
+      return acc;
+    }, {});
+  }, [categories]);
+
+  const subcategoryLookup = useMemo(() => {
+    return categories.reduce((acc, category) => {
+      if (category.parentId) {
+        acc[category.id] = category.name;
+      }
+      return acc;
+    }, {});
+  }, [categories]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
@@ -216,42 +148,29 @@ export default function TransactionsPage() {
       if (filters.paidByUserId && transaction.paidByUserId !== filters.paidByUserId) {
         return false;
       }
-      if (filters.category && transaction.category !== filters.category) {
-        return false;
+      if (filters.categoryId) {
+        const categoryName = categoryLookup[filters.categoryId];
+        if (transaction.categoryId && transaction.categoryId !== filters.categoryId) {
+          return false;
+        }
+        if (
+          !transaction.categoryId &&
+          categoryName &&
+          transaction.category !== categoryName
+        ) {
+          return false;
+        }
       }
       return true;
     });
-  }, [transactions, filters]);
-
-  const categoryOptions = useMemo(() => {
-    if (!formState.type) {
-      return categories;
-    }
-    return categories.filter((category) => category.type === formState.type);
-  }, [categories, formState.type]);
+  }, [transactions, filters, categoryLookup]);
 
   const isFormValid = requiredFields.every((field) =>
     String(formState[field]).trim()
   );
 
-  const handleChange = (event) => {
-    const { name, value } = event.target;
-    setHasEditedForm(true);
-    if (name === "paymentMethod") {
-      const selectedMethod = paymentMethods.find((method) => method.name === value);
-      setFormState((prev) => ({
-        ...prev,
-        paymentMethod: value,
-        accountId: selectedMethod?.accountId || ""
-      }));
-      return;
-    }
-    setFormState((prev) => ({ ...prev, [name]: value }));
-  };
-
   const handleReset = () => {
     setFormState(buildDefaultFormState({ profile, user }));
-    setHasEditedForm(false);
     setStatusMessage("");
     setEditingTransactionId("");
   };
@@ -266,43 +185,56 @@ export default function TransactionsPage() {
       return;
     }
 
-    const transactionRef = editingTransactionId
-      ? doc(
-          db,
-          "households",
-          profile.householdId,
-          "transactions",
-          editingTransactionId
-        )
-      : doc(collection(db, "households", profile.householdId, "transactions"));
+    if (!editingTransactionId) {
+      return;
+    }
+    const transactionRef = doc(
+      db,
+      "households",
+      profile.householdId,
+      "transactions",
+      editingTransactionId
+    );
     const payload = {
       ...formState,
       transactionId: transactionRef.id
     };
 
-    if (editingTransactionId) {
-      await setDoc(transactionRef, { ...payload, updatedAt: serverTimestamp() }, { merge: true });
-      setStatusMessage(t("pages.transactions.updated"));
-    } else {
-      await setDoc(transactionRef, { ...payload, createdAt: serverTimestamp() });
-      setStatusMessage(t("pages.transactions.saved"));
-    }
+    await setDoc(
+      transactionRef,
+      { ...payload, updatedAt: serverTimestamp() },
+      { merge: true }
+    );
+    setStatusMessage(t("pages.transactions.updated"));
     setFormState(buildDefaultFormState({ profile, user }));
-    setHasEditedForm(false);
-    setFormExpanded(false);
     setEditingTransactionId("");
   };
 
   const handleEdit = (transaction) => {
+    const matchedCategory =
+      categories.find((item) => item.id === transaction.categoryId) ||
+      categories.find(
+        (item) => !item.parentId && item.name === transaction.category
+      );
+    const matchedSubcategory =
+      categories.find((item) => item.id === transaction.subcategoryId) ||
+      categories.find(
+        (item) =>
+          item.parentId === matchedCategory?.id &&
+          item.name === transaction.subcategory
+      );
     setFormState({
       ...buildDefaultFormState({ profile, user }),
       ...transaction,
       merchant: merchants.some((item) => item.name === transaction.merchant)
         ? transaction.merchant
         : "",
-      category: categories.some((item) => item.name === transaction.category)
-        ? transaction.category
-        : "",
+      categoryId: matchedCategory?.id || "",
+      category: matchedCategory?.name || transaction.category || "",
+      subcategoryId: matchedSubcategory?.id || "",
+      subcategory: matchedSubcategory?.name || transaction.subcategory || "",
+      spendType:
+        transaction.spendType || matchedSubcategory?.spendType || "essential",
       paymentMethod: paymentMethods.some(
         (item) => item.name === transaction.paymentMethod
       )
@@ -312,8 +244,6 @@ export default function TransactionsPage() {
         ? transaction.accountId
         : ""
     });
-    setHasEditedForm(true);
-    setFormExpanded(true);
     setEditingTransactionId(transaction.id);
   };
 
@@ -340,216 +270,45 @@ export default function TransactionsPage() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-semibold text-white">
-                {t("pages.transactions.form.title")}
+                {t("pages.transactions.edit.title")}
               </h2>
               <p className="text-sm text-slate-400">
-                {t("pages.transactions.form.subtitle")}
+                {t("pages.transactions.edit.subtitle")}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setFormExpanded((prev) => !prev)}
-              className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5 text-xl font-semibold text-white transition hover:bg-white/10"
-              aria-label={t("pages.transactions.actions.toggleForm")}
+            <Link
+              to="/transactions/new"
+              className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
             >
-              {formExpanded ? "−" : "+"}
-            </button>
+              {t("pages.transactions.actions.add")}
+            </Link>
           </div>
 
-          {formExpanded ? (
-            <form className="mt-6 space-y-6" onSubmit={handleSubmit}>
-              <div className="grid gap-6 md:grid-cols-2">
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.date")}*
-                  <input
-                    type="date"
-                    name="date"
-                    value={formState.date}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    required
-                    disabled={!profile?.householdId}
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.amount")}*
-                  <input
-                    type="number"
-                    step="0.01"
-                    name="amount"
-                    value={formState.amount}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    placeholder="0.00"
-                    required
-                    disabled={!profile?.householdId}
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.type")}*
-                  <select
-                    name="type"
-                    value={formState.type}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    required
-                    disabled={!profile?.householdId}
-                  >
-                    <option value="expense">
-                      {t("pages.transactions.types.expense")}
-                    </option>
-                    <option value="income">
-                      {t("pages.transactions.types.income")}
-                    </option>
-                  </select>
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.currency")}*
-                  <input
-                    name="currency"
-                    value={formState.currency}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    placeholder="EUR"
-                    required
-                    disabled={!profile?.householdId}
-                  />
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.merchant")}*
-                  <select
-                    name="merchant"
-                    value={formState.merchant}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    required
-                    disabled={!profile?.householdId}
-                  >
-                    <option value="">
-                      {t("pages.transactions.placeholders.merchant")}
-                    </option>
-                    {merchants.map((merchant) => (
-                      <option key={merchant.id} value={merchant.name}>
-                        {merchant.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.category")}
-                  <select
-                    name="category"
-                    value={formState.category}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    disabled={!profile?.householdId}
-                  >
-                    <option value="">
-                      {t("pages.transactions.placeholders.category")}
-                    </option>
-                    {categoryOptions.map((category) => (
-                      <option key={category.id} value={category.name}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.paymentMethod")}
-                  <select
-                    name="paymentMethod"
-                    value={formState.paymentMethod}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    disabled={!profile?.householdId}
-                  >
-                    <option value="">
-                      {t("pages.transactions.placeholders.paymentMethod")}
-                    </option>
-                    {paymentMethods.map((method) => (
-                      <option key={method.id} value={method.name}>
-                        {method.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.account")}
-                  <select
-                    name="accountId"
-                    value={formState.accountId}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    disabled={!profile?.householdId}
-                  >
-                    <option value="">
-                      {t("pages.transactions.placeholders.account")}
-                    </option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-2 text-sm">
-                  {t("pages.transactions.fields.paidBy")}*
-                  <select
-                    name="paidByUserId"
-                    value={formState.paidByUserId}
-                    onChange={handleChange}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    required
-                    disabled={!profile?.householdId}
-                  >
-                    <option value="">
-                      {t("pages.transactions.placeholders.paidBy")}
-                    </option>
-                    {paidByOptions.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {buildMemberName(member)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="flex flex-col gap-2 text-sm md:col-span-2">
-                  {t("pages.transactions.fields.description")}
-                  <textarea
-                    name="description"
-                    value={formState.description}
-                    onChange={handleChange}
-                    rows={3}
-                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                    placeholder={t("pages.transactions.fields.descriptionPlaceholder")}
-                    disabled={!profile?.householdId}
-                  />
-                </label>
-              </div>
-
-              {statusMessage ? (
-                <p className="text-sm text-amber-200">{statusMessage}</p>
-              ) : null}
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="submit"
-                  disabled={!isFormValid || !profile?.householdId}
-                  className="rounded-xl bg-amber-500/90 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
-                >
-                  {editingTransactionId
-                    ? t("pages.transactions.actions.update")
-                    : t("pages.transactions.actions.save")}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="rounded-xl border border-white/10 bg-white/5 px-5 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-                >
-                  {t("pages.transactions.actions.reset")}
-                </button>
-              </div>
-            </form>
-          ) : null}
+          {editingTransactionId ? (
+            <div className="mt-6">
+              <TransactionForm
+                title={t("pages.transactions.edit.formTitle")}
+                subtitle={t("pages.transactions.edit.formSubtitle")}
+                formState={formState}
+                setFormState={setFormState}
+                onSubmit={handleSubmit}
+                onReset={handleReset}
+                statusMessage={statusMessage}
+                categories={categories}
+                paymentMethods={paymentMethods}
+                accounts={accounts}
+                merchants={merchants}
+                paidByOptions={paidByOptions}
+                isFormValid={isFormValid}
+                isEditing
+                disabled={!profile?.householdId}
+              />
+            </div>
+          ) : (
+            <p className="mt-4 text-sm text-slate-400">
+              {t("pages.transactions.edit.empty")}
+            </p>
+          )}
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-slate-900/50 p-6 shadow-xl shadow-slate-950/40">
@@ -633,18 +392,20 @@ export default function TransactionsPage() {
             <label className="flex flex-col gap-2 text-sm">
               {t("pages.transactions.filters.category")}
               <select
-                value={filters.category}
+                value={filters.categoryId}
                 onChange={(event) =>
                   setFilters((prev) => ({
                     ...prev,
-                    category: event.target.value
+                    categoryId: event.target.value
                   }))
                 }
                 className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
               >
                 <option value="">{t("pages.transactions.filters.all")}</option>
-                {categories.map((category) => (
-                  <option key={category.id} value={category.name}>
+                {categories
+                  .filter((category) => !category.parentId)
+                  .map((category) => (
+                    <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
                 ))}
@@ -673,7 +434,16 @@ export default function TransactionsPage() {
                       {transaction.merchant || t("pages.transactions.list.unnamed")}
                     </p>
                     <p className="text-sm text-slate-300">
-                      {transaction.category || t("pages.transactions.list.noCategory")}
+                      {[
+                        categoryLookup[transaction.categoryId] ||
+                          transaction.category ||
+                          t("pages.transactions.list.noCategory"),
+                        subcategoryLookup[transaction.subcategoryId] ||
+                          transaction.subcategory ||
+                          null
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </p>
                     <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
                       {transaction.type

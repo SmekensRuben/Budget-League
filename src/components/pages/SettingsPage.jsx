@@ -241,7 +241,15 @@ function CategoriesTab({ user }) {
   const [formState, setFormState] = useState({
     name: "",
     type: "expense",
-    parentId: ""
+    parentId: "",
+    spendType: "essential"
+  });
+  const [editingCategoryId, setEditingCategoryId] = useState("");
+  const [editFormState, setEditFormState] = useState({
+    name: "",
+    type: "expense",
+    parentId: "",
+    spendType: "essential"
   });
 
   useEffect(() => {
@@ -258,7 +266,6 @@ function CategoriesTab({ user }) {
     });
     return () => {
       unsubscribe();
-      unsubscribeAccounts();
     };
   }, [user]);
 
@@ -273,9 +280,67 @@ function CategoriesTab({ user }) {
       name: formState.name.trim(),
       type: formState.type,
       parentId: formState.parentId || null,
+      spendType: formState.parentId ? formState.spendType : null,
       createdAt: serverTimestamp()
     });
-    setFormState((prev) => ({ ...prev, name: "" }));
+    setFormState({
+      name: "",
+      type: formState.type,
+      parentId: "",
+      spendType: "essential"
+    });
+  };
+
+  const handleEditStart = (category) => {
+    setEditingCategoryId(category.id);
+    setEditFormState({
+      name: category.name || "",
+      type: category.type || "expense",
+      parentId: category.parentId || "",
+      spendType: category.spendType || "essential"
+    });
+  };
+
+  const handleEditCancel = () => {
+    setEditingCategoryId("");
+    setEditFormState({
+      name: "",
+      type: "expense",
+      parentId: "",
+      spendType: "essential"
+    });
+  };
+
+  const handleEditSave = async (event) => {
+    event.preventDefault();
+    if (!user || !editingCategoryId || !editFormState.name.trim()) {
+      return;
+    }
+    const categoryRef = doc(db, "users", user.uid, "categories", editingCategoryId);
+    await updateDoc(categoryRef, {
+      name: editFormState.name.trim(),
+      type: editFormState.type,
+      parentId: editFormState.parentId || null,
+      spendType: editFormState.parentId ? editFormState.spendType : null
+    });
+    handleEditCancel();
+  };
+
+  const handleDelete = async (category) => {
+    if (!user || !category?.id) {
+      return;
+    }
+    const categoryRef = doc(db, "users", user.uid, "categories", category.id);
+    const subcategories = categories.filter((item) => item.parentId === category.id);
+    await Promise.all(
+      subcategories.map((sub) =>
+        deleteDoc(doc(db, "users", user.uid, "categories", sub.id))
+      )
+    );
+    await deleteDoc(categoryRef);
+    if (editingCategoryId === category.id) {
+      handleEditCancel();
+    }
   };
 
   return (
@@ -287,7 +352,10 @@ function CategoriesTab({ user }) {
         </p>
       </div>
 
-      <form className="grid gap-4 md:grid-cols-[1fr_160px_1fr_auto]" onSubmit={handleAdd}>
+      <form
+        className="grid gap-4 md:grid-cols-[1fr_160px_1fr_160px_auto]"
+        onSubmit={handleAdd}
+      >
         <input
           value={formState.name}
           onChange={(event) =>
@@ -320,6 +388,25 @@ function CategoriesTab({ user }) {
             </option>
           ))}
         </select>
+        {formState.parentId ? (
+          <select
+            value={formState.spendType}
+            onChange={(event) =>
+              setFormState((prev) => ({
+                ...prev,
+                spendType: event.target.value
+              }))
+            }
+            className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+          >
+            <option value="essential">
+              {t("settings.categories.spendTypes.essential")}
+            </option>
+            <option value="discretionary">
+              {t("settings.categories.spendTypes.discretionary")}
+            </option>
+          </select>
+        ) : null}
         <button
           type="submit"
           className="rounded-xl bg-amber-500/90 px-4 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
@@ -338,30 +425,253 @@ function CategoriesTab({ user }) {
             const subcategories = categories.filter(
               (item) => item.parentId === category.id
             );
+            const isEditing = editingCategoryId === category.id;
             return (
               <div
                 key={category.id}
                 className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
               >
-                <div className="flex items-center justify-between text-sm font-semibold text-white">
-                  <span>{category.name}</span>
-                  <span className="text-xs uppercase tracking-[0.2em] text-amber-200">
-                    {t(`settings.categories.types.${category.type}`)}
-                  </span>
+                <div className="flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-white">
+                  <div className="flex items-center gap-3">
+                    <span>{category.name}</span>
+                    <span className="text-xs uppercase tracking-[0.2em] text-amber-200">
+                      {t(`settings.categories.types.${category.type}`)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEditStart(category)}
+                      className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                    >
+                      {t("settings.categories.edit")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(category)}
+                      className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
+                    >
+                      {t("settings.categories.delete")}
+                    </button>
+                  </div>
                 </div>
-                {subcategories.length > 0 ? (
-                  <ul className="mt-3 space-y-1 text-sm text-slate-300">
-                    {subcategories.map((sub) => (
-                      <li key={sub.id} className="pl-4">
-                        • {sub.name}
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="mt-3 text-sm text-slate-500">
-                    {t("settings.categories.noSubcategories")}
-                  </p>
-                )}
+                {isEditing ? (
+                  <form
+                    className="mt-4 grid gap-3 md:grid-cols-4"
+                    onSubmit={handleEditSave}
+                  >
+                    <input
+                      value={editFormState.name}
+                      onChange={(event) =>
+                        setEditFormState((prev) => ({
+                          ...prev,
+                          name: event.target.value
+                        }))
+                      }
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                    />
+                    <select
+                      value={editFormState.type}
+                      onChange={(event) =>
+                        setEditFormState((prev) => ({
+                          ...prev,
+                          type: event.target.value
+                        }))
+                      }
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                    >
+                      <option value="expense">
+                        {t("settings.categories.types.expense")}
+                      </option>
+                      <option value="income">
+                        {t("settings.categories.types.income")}
+                      </option>
+                    </select>
+                    <select
+                      value={editFormState.parentId}
+                      onChange={(event) =>
+                        setEditFormState((prev) => ({
+                          ...prev,
+                          parentId: event.target.value
+                        }))
+                      }
+                      className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                    >
+                      <option value="">
+                        {t("settings.categories.parentPlaceholder")}
+                      </option>
+                      {topLevelCategories
+                        .filter((item) => item.id !== category.id)
+                        .map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                    </select>
+                    {editFormState.parentId ? (
+                      <select
+                        value={editFormState.spendType}
+                        onChange={(event) =>
+                          setEditFormState((prev) => ({
+                            ...prev,
+                            spendType: event.target.value
+                          }))
+                        }
+                        className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                      >
+                        <option value="essential">
+                          {t("settings.categories.spendTypes.essential")}
+                        </option>
+                        <option value="discretionary">
+                          {t("settings.categories.spendTypes.discretionary")}
+                        </option>
+                      </select>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2 md:col-span-4">
+                      <button
+                        type="submit"
+                        className="rounded-lg bg-amber-500/90 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-amber-400"
+                      >
+                        {t("settings.categories.save")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleEditCancel}
+                        className="rounded-lg border border-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
+                      >
+                        {t("settings.categories.cancel")}
+                      </button>
+                    </div>
+                  </form>
+                ) : null}
+                {!isEditing ? (
+                  subcategories.length > 0 ? (
+                    <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                      {subcategories.map((sub) => {
+                        const isEditingSub = editingCategoryId === sub.id;
+                        return (
+                          <li key={sub.id} className="rounded-lg bg-slate-950/40 p-3">
+                            {isEditingSub ? (
+                              <form
+                                className="grid gap-3 md:grid-cols-4"
+                                onSubmit={handleEditSave}
+                              >
+                                <input
+                                  value={editFormState.name}
+                                  onChange={(event) =>
+                                    setEditFormState((prev) => ({
+                                      ...prev,
+                                      name: event.target.value
+                                    }))
+                                  }
+                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                />
+                                <select
+                                  value={editFormState.type}
+                                  onChange={(event) =>
+                                    setEditFormState((prev) => ({
+                                      ...prev,
+                                      type: event.target.value
+                                    }))
+                                  }
+                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                >
+                                  <option value="expense">
+                                    {t("settings.categories.types.expense")}
+                                  </option>
+                                  <option value="income">
+                                    {t("settings.categories.types.income")}
+                                  </option>
+                                </select>
+                                <select
+                                  value={editFormState.parentId}
+                                  onChange={(event) =>
+                                    setEditFormState((prev) => ({
+                                      ...prev,
+                                      parentId: event.target.value
+                                    }))
+                                  }
+                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                >
+                                  {topLevelCategories.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                      {item.name}
+                                    </option>
+                                  ))}
+                                </select>
+                                <select
+                                  value={editFormState.spendType}
+                                  onChange={(event) =>
+                                    setEditFormState((prev) => ({
+                                      ...prev,
+                                      spendType: event.target.value
+                                    }))
+                                  }
+                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                >
+                                  <option value="essential">
+                                    {t("settings.categories.spendTypes.essential")}
+                                  </option>
+                                  <option value="discretionary">
+                                    {t("settings.categories.spendTypes.discretionary")}
+                                  </option>
+                                </select>
+                                <div className="flex flex-wrap items-center gap-2 md:col-span-4">
+                                  <button
+                                    type="submit"
+                                    className="rounded-lg bg-amber-500/90 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-amber-400"
+                                  >
+                                    {t("settings.categories.save")}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleEditCancel}
+                                    className="rounded-lg border border-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
+                                  >
+                                    {t("settings.categories.cancel")}
+                                  </button>
+                                </div>
+                              </form>
+                            ) : (
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <span className="font-semibold text-white">
+                                    {sub.name}
+                                  </span>
+                                  <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                                    {t(
+                                      `settings.categories.spendTypes.${sub.spendType || "essential"}`
+                                    )}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditStart(sub)}
+                                    className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                                  >
+                                    {t("settings.categories.edit")}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDelete(sub)}
+                                    className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
+                                  >
+                                    {t("settings.categories.delete")}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="mt-3 text-sm text-slate-500">
+                      {t("settings.categories.noSubcategories")}
+                    </p>
+                  )
+                ) : null}
               </div>
             );
           })
