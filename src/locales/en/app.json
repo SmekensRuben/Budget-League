@@ -52,9 +52,18 @@
     "transactions": {
       "title": "Transactions",
       "subtitle": "Only available when you are part of a household.",
-      "form": {
-        "title": "Add a transaction",
-        "subtitle": "Capture the essentials and keep household totals up to date."
+      "new": {
+        "title": "New transaction",
+        "subtitle": "Capture the essentials and keep household totals up to date.",
+        "formTitle": "Transaction overview",
+        "formSubtitle": "Fill in each section and save your transaction."
+      },
+      "edit": {
+        "title": "Manage transactions",
+        "subtitle": "Update existing transactions or start a new one.",
+        "formTitle": "Edit transaction",
+        "formSubtitle": "Update the details and save your changes.",
+        "empty": "Select a transaction from the list to edit it here."
       },
       "fields": {
         "date": "Date",
@@ -63,6 +72,8 @@
         "currency": "Currency",
         "merchant": "Merchant",
         "category": "Category",
+        "subcategory": "Subcategory",
+        "spendType": "Spend type",
         "paymentMethod": "Payment method",
         "account": "Account",
         "paidBy": "Paid by",
@@ -72,18 +83,31 @@
       "placeholders": {
         "merchant": "Select a merchant",
         "category": "Select a category",
+        "subcategory": "Select a subcategory",
+        "spendType": "Select a spend type",
         "paymentMethod": "Select a payment method",
         "account": "Select an account",
         "paidBy": "Select a household member"
+      },
+      "sections": {
+        "details": "Details",
+        "categorization": "Categorization",
+        "payment": "Payment",
+        "notes": "Notes"
       },
       "types": {
         "expense": "Expense",
         "income": "Income"
       },
+      "spendTypes": {
+        "essential": "Essential",
+        "discretionary": "Discretionary"
+      },
       "actions": {
         "save": "Save transaction",
         "update": "Update transaction",
         "reset": "Reset form",
+        "add": "Add transaction",
         "edit": "Edit",
         "delete": "Delete",
         "toggleForm": "Toggle transaction form"
@@ -163,7 +187,15 @@
         "expense": "Expense",
         "income": "Income"
       },
+      "spendTypes": {
+        "essential": "Essential",
+        "discretionary": "Discretionary"
+      },
       "add": "Add category",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel",
       "empty": "No categories yet.",
       "noSubcategories": "No subcategories yet."
     },

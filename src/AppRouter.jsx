@@ -5,6 +5,7 @@ import LoginPage from "./components/pages/LoginPage.jsx";
 import ProtectedRoute from "./components/shared/ProtectedRoute.jsx";
 import StartPage from "./components/pages/StartPage.jsx";
 import TransactionsPage from "./components/pages/TransactionsPage.jsx";
+import AddTransactionPage from "./components/pages/AddTransactionPage.jsx";
 import BudgetsPage from "./components/pages/BudgetsPage.jsx";
 import InsightsPage from "./components/pages/InsightsPage.jsx";
 import SettingsPage from "./components/pages/SettingsPage.jsx";
@@ -26,6 +27,14 @@ export default function AppRouter() {
         element={
           <ProtectedRoute>
             <TransactionsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transactions/new"
+        element={
+          <ProtectedRoute>
+            <AddTransactionPage />
           </ProtectedRoute>
         }
       />

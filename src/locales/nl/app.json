@@ -52,9 +52,18 @@
     "transactions": {
       "title": "Transacties",
       "subtitle": "Alleen beschikbaar wanneer je in een household zit.",
-      "form": {
-        "title": "Transactie toevoegen",
-        "subtitle": "Leg de essentials vast en hou je household up-to-date."
+      "new": {
+        "title": "Nieuwe transactie",
+        "subtitle": "Leg de essentials vast en hou je household up-to-date.",
+        "formTitle": "Transactieoverzicht",
+        "formSubtitle": "Vul elke sectie in en sla je transactie op."
+      },
+      "edit": {
+        "title": "Transacties beheren",
+        "subtitle": "Werk bestaande transacties bij of start een nieuwe.",
+        "formTitle": "Transactie bewerken",
+        "formSubtitle": "Werk de details bij en sla je wijzigingen op.",
+        "empty": "Selecteer een transactie uit de lijst om deze hier te bewerken."
       },
       "fields": {
         "date": "Datum",
@@ -63,6 +72,8 @@
         "currency": "Valuta",
         "merchant": "Merchant",
         "category": "Categorie",
+        "subcategory": "Subcategorie",
+        "spendType": "Spend type",
         "paymentMethod": "Betaalmethode",
         "account": "Account",
         "paidBy": "Betaald door",
@@ -72,18 +83,31 @@
       "placeholders": {
         "merchant": "Kies een merchant",
         "category": "Kies een categorie",
+        "subcategory": "Kies een subcategorie",
+        "spendType": "Kies een spend type",
         "paymentMethod": "Kies een betaalmethode",
         "account": "Kies een account",
         "paidBy": "Kies een householdlid"
+      },
+      "sections": {
+        "details": "Details",
+        "categorization": "Categorisatie",
+        "payment": "Betaling",
+        "notes": "Notities"
       },
       "types": {
         "expense": "Expense",
         "income": "Income"
       },
+      "spendTypes": {
+        "essential": "Essential",
+        "discretionary": "Discretionary"
+      },
       "actions": {
         "save": "Transactie opslaan",
         "update": "Transactie bijwerken",
         "reset": "Formulier leegmaken",
+        "add": "Transactie toevoegen",
         "edit": "Bewerken",
         "delete": "Verwijderen",
         "toggleForm": "Transactieformulier tonen"
@@ -163,7 +187,15 @@
         "expense": "Expense",
         "income": "Income"
       },
+      "spendTypes": {
+        "essential": "Essential",
+        "discretionary": "Discretionary"
+      },
       "add": "Categorie toevoegen",
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "save": "Opslaan",
+      "cancel": "Annuleren",
       "empty": "Nog geen categorieën.",
       "noSubcategories": "Nog geen subcategorieën."
     },
