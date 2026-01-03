@@ -1095,10 +1095,7 @@ export default function StartPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-semibold text-white">
-                      {t("pages.start.dashboard.expensesTitle")}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {t("pages.start.dashboard.expensesSubtitle")}
+                      {t("pages.start.dashboard.expenseLabel")}
                     </p>
                   </div>
                   <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
@@ -1109,6 +1106,14 @@ export default function StartPage() {
                 </div>
                 <div className="mt-6 grid gap-6 lg:grid-cols-2">
                   <div className="space-y-4">
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {t("pages.start.dashboard.expensesTitle")}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {t("pages.start.dashboard.expensesSubtitle")}
+                      </p>
+                    </div>
                     <div className="relative flex items-center justify-center">
                       {expensePieSegments.length === 0 ? (
                         <div className="flex h-48 w-48 items-center justify-center rounded-full border border-dashed border-white/10 text-xs text-slate-400">
