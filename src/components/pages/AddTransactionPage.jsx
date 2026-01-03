@@ -47,8 +47,8 @@ export default function AddTransactionPage() {
     return [];
   }, [members, user]);
 
-  const requiredFields = useMemo(
-    () => [
+  const requiredFields = useMemo(() => {
+    const baseFields = [
       "date",
       "amount",
       "currency",
@@ -56,11 +56,13 @@ export default function AddTransactionPage() {
       "paidByUserId",
       "type",
       "categoryId",
-      "subcategoryId",
-      "spendType"
-    ],
-    []
-  );
+      "subcategoryId"
+    ];
+    if (formState.type === "income") {
+      return [...baseFields, "incomeStability"];
+    }
+    return [...baseFields, "spendType"];
+  }, [formState.type]);
 
   const isFormValid = requiredFields.every((field) => String(formState[field]).trim());
 

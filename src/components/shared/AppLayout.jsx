@@ -26,7 +26,7 @@ export default function AppLayout({ title, subtitle, children }) {
     <div className="min-h-screen bg-slate-950 text-slate-50">
       <header className="border-b border-white/10 bg-slate-900/60 backdrop-blur">
         <div className="max-w-6xl mx-auto px-6 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
+          <NavLink to="/" className="flex items-center gap-3">
             <img
               src="/assets/breakfast_pilot_logo_black_circle.png"
               alt="Budget League Logo"
@@ -41,7 +41,7 @@ export default function AppLayout({ title, subtitle, children }) {
                 <p className="text-sm text-slate-400">{subtitle}</p>
               ) : null}
             </div>
-          </div>
+          </NavLink>
           <div className="flex flex-wrap items-center gap-2">
             <NavLink to="/" className={navLinkClasses}>
               {t("nav.home")}

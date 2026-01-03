@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { auth, signInWithEmailAndPassword } from "../../firebaseConfig";
 import { useAuthContext } from "../../contexts/AuthContext";
@@ -53,7 +53,7 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-50">
       <header className="border-b border-white/10 bg-slate-900/60 backdrop-blur">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <Link to="/" className="flex items-center gap-3">
             <img
               src="/assets/breakfast_pilot_logo_black_circle.png"
               alt="Budget League Logo"
@@ -65,7 +65,7 @@ export default function LoginPage() {
               </p>
               <h1 className="text-2xl font-bold">{t("loginTitle")}</h1>
             </div>
-          </div>
+          </Link>
           <button
             onClick={() => navigate("/")}
             className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/20"

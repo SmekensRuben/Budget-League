@@ -33,10 +33,9 @@ export default function StartPage() {
   const getDefaultMonthRange = () => {
     const today = new Date();
     const start = new Date(today.getFullYear(), today.getMonth(), 1);
-    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     return {
       startDate: getLocalDateInputValue(start),
-      endDate: getLocalDateInputValue(end)
+      endDate: getLocalDateInputValue(today)
     };
   };
   const [household, setHousehold] = useState(null);

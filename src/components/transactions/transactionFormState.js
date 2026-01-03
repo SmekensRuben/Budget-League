@@ -9,6 +9,7 @@ export const buildDefaultFormState = ({ profile, user }) => ({
   subcategoryId: "",
   subcategory: "",
   spendType: "",
+  incomeStability: "",
   paymentMethod: "",
   accountId: "",
   paidByUserId: user?.uid || "",

@@ -242,14 +242,16 @@ function CategoriesTab({ user }) {
     name: "",
     type: "expense",
     parentId: "",
-    spendType: "essential"
+    spendType: "essential",
+    incomeStability: "regular"
   });
   const [editingCategoryId, setEditingCategoryId] = useState("");
   const [editFormState, setEditFormState] = useState({
     name: "",
     type: "expense",
     parentId: "",
-    spendType: "essential"
+    spendType: "essential",
+    incomeStability: "regular"
   });
 
   useEffect(() => {
@@ -280,14 +282,22 @@ function CategoriesTab({ user }) {
       name: formState.name.trim(),
       type: formState.type,
       parentId: formState.parentId || null,
-      spendType: formState.parentId ? formState.spendType : null,
+      spendType:
+        formState.parentId && formState.type === "expense"
+          ? formState.spendType
+          : null,
+      incomeStability:
+        formState.parentId && formState.type === "income"
+          ? formState.incomeStability
+          : null,
       createdAt: serverTimestamp()
     });
     setFormState({
       name: "",
       type: formState.type,
       parentId: "",
-      spendType: "essential"
+      spendType: "essential",
+      incomeStability: "regular"
     });
   };
 
@@ -297,7 +307,8 @@ function CategoriesTab({ user }) {
       name: category.name || "",
       type: category.type || "expense",
       parentId: category.parentId || "",
-      spendType: category.spendType || "essential"
+      spendType: category.spendType || "essential",
+      incomeStability: category.incomeStability || "regular"
     });
   };
 
@@ -307,7 +318,8 @@ function CategoriesTab({ user }) {
       name: "",
       type: "expense",
       parentId: "",
-      spendType: "essential"
+      spendType: "essential",
+      incomeStability: "regular"
     });
   };
 
@@ -321,7 +333,14 @@ function CategoriesTab({ user }) {
       name: editFormState.name.trim(),
       type: editFormState.type,
       parentId: editFormState.parentId || null,
-      spendType: editFormState.parentId ? editFormState.spendType : null
+      spendType:
+        editFormState.parentId && editFormState.type === "expense"
+          ? editFormState.spendType
+          : null,
+      incomeStability:
+        editFormState.parentId && editFormState.type === "income"
+          ? editFormState.incomeStability
+          : null
     });
     handleEditCancel();
   };
@@ -367,7 +386,12 @@ function CategoriesTab({ user }) {
         <select
           value={formState.type}
           onChange={(event) =>
-            setFormState((prev) => ({ ...prev, type: event.target.value }))
+            setFormState((prev) => ({
+              ...prev,
+              type: event.target.value,
+              spendType: "essential",
+              incomeStability: "regular"
+            }))
           }
           className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
         >
@@ -388,7 +412,7 @@ function CategoriesTab({ user }) {
             </option>
           ))}
         </select>
-        {formState.parentId ? (
+        {formState.parentId && formState.type === "expense" ? (
           <select
             value={formState.spendType}
             onChange={(event) =>
@@ -404,6 +428,25 @@ function CategoriesTab({ user }) {
             </option>
             <option value="discretionary">
               {t("settings.categories.spendTypes.discretionary")}
+            </option>
+          </select>
+        ) : null}
+        {formState.parentId && formState.type === "income" ? (
+          <select
+            value={formState.incomeStability}
+            onChange={(event) =>
+              setFormState((prev) => ({
+                ...prev,
+                incomeStability: event.target.value
+              }))
+            }
+            className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+          >
+            <option value="regular">
+              {t("settings.categories.incomeStabilities.regular")}
+            </option>
+            <option value="irregular">
+              {t("settings.categories.incomeStabilities.irregular")}
             </option>
           </select>
         ) : null}
@@ -475,7 +518,9 @@ function CategoriesTab({ user }) {
                       onChange={(event) =>
                         setEditFormState((prev) => ({
                           ...prev,
-                          type: event.target.value
+                          type: event.target.value,
+                          spendType: "essential",
+                          incomeStability: "regular"
                         }))
                       }
                       className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
@@ -508,7 +553,7 @@ function CategoriesTab({ user }) {
                           </option>
                         ))}
                     </select>
-                    {editFormState.parentId ? (
+                    {editFormState.parentId && editFormState.type === "expense" ? (
                       <select
                         value={editFormState.spendType}
                         onChange={(event) =>
@@ -524,6 +569,25 @@ function CategoriesTab({ user }) {
                         </option>
                         <option value="discretionary">
                           {t("settings.categories.spendTypes.discretionary")}
+                        </option>
+                      </select>
+                    ) : null}
+                    {editFormState.parentId && editFormState.type === "income" ? (
+                      <select
+                        value={editFormState.incomeStability}
+                        onChange={(event) =>
+                          setEditFormState((prev) => ({
+                            ...prev,
+                            incomeStability: event.target.value
+                          }))
+                        }
+                        className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                      >
+                        <option value="regular">
+                          {t("settings.categories.incomeStabilities.regular")}
+                        </option>
+                        <option value="irregular">
+                          {t("settings.categories.incomeStabilities.irregular")}
                         </option>
                       </select>
                     ) : null}
@@ -571,7 +635,9 @@ function CategoriesTab({ user }) {
                                   onChange={(event) =>
                                     setEditFormState((prev) => ({
                                       ...prev,
-                                      type: event.target.value
+                                      type: event.target.value,
+                                      spendType: "essential",
+                                      incomeStability: "regular"
                                     }))
                                   }
                                   className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
@@ -599,23 +665,47 @@ function CategoriesTab({ user }) {
                                     </option>
                                   ))}
                                 </select>
-                                <select
-                                  value={editFormState.spendType}
-                                  onChange={(event) =>
-                                    setEditFormState((prev) => ({
-                                      ...prev,
-                                      spendType: event.target.value
-                                    }))
-                                  }
-                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                                >
-                                  <option value="essential">
-                                    {t("settings.categories.spendTypes.essential")}
-                                  </option>
-                                  <option value="discretionary">
-                                    {t("settings.categories.spendTypes.discretionary")}
-                                  </option>
-                                </select>
+                                {editFormState.type === "expense" ? (
+                                  <select
+                                    value={editFormState.spendType}
+                                    onChange={(event) =>
+                                      setEditFormState((prev) => ({
+                                        ...prev,
+                                        spendType: event.target.value
+                                      }))
+                                    }
+                                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                  >
+                                    <option value="essential">
+                                      {t("settings.categories.spendTypes.essential")}
+                                    </option>
+                                    <option value="discretionary">
+                                      {t("settings.categories.spendTypes.discretionary")}
+                                    </option>
+                                  </select>
+                                ) : (
+                                  <select
+                                    value={editFormState.incomeStability}
+                                    onChange={(event) =>
+                                      setEditFormState((prev) => ({
+                                        ...prev,
+                                        incomeStability: event.target.value
+                                      }))
+                                    }
+                                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                  >
+                                    <option value="regular">
+                                      {t(
+                                        "settings.categories.incomeStabilities.regular"
+                                      )}
+                                    </option>
+                                    <option value="irregular">
+                                      {t(
+                                        "settings.categories.incomeStabilities.irregular"
+                                      )}
+                                    </option>
+                                  </select>
+                                )}
                                 <div className="flex flex-wrap items-center gap-2 md:col-span-4">
                                   <button
                                     type="submit"
@@ -639,9 +729,17 @@ function CategoriesTab({ user }) {
                                     {sub.name}
                                   </span>
                                   <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                                    {t(
-                                      `settings.categories.spendTypes.${sub.spendType || "essential"}`
-                                    )}
+                                    {sub.type === "income"
+                                      ? t(
+                                          `settings.categories.incomeStabilities.${
+                                            sub.incomeStability || "regular"
+                                          }`
+                                        )
+                                      : t(
+                                          `settings.categories.spendTypes.${
+                                            sub.spendType || "essential"
+                                          }`
+                                        )}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">

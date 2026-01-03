@@ -58,7 +58,8 @@ export default function TransactionForm({
         category: "",
         subcategoryId: "",
         subcategory: "",
-        spendType: ""
+        spendType: "",
+        incomeStability: ""
       }));
       return;
     }
@@ -70,7 +71,8 @@ export default function TransactionForm({
         category: selectedCategory?.name || "",
         subcategoryId: "",
         subcategory: "",
-        spendType: ""
+        spendType: "",
+        incomeStability: ""
       }));
       return;
     }
@@ -82,7 +84,14 @@ export default function TransactionForm({
         ...prev,
         subcategoryId: value,
         subcategory: selectedSubcategory?.name || "",
-        spendType: selectedSubcategory?.spendType || "essential"
+        spendType:
+          formState.type === "expense"
+            ? selectedSubcategory?.spendType || "essential"
+            : "",
+        incomeStability:
+          formState.type === "income"
+            ? selectedSubcategory?.incomeStability || "regular"
+            : ""
       }));
       return;
     }
@@ -219,23 +228,51 @@ export default function TransactionForm({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-2 text-sm">
-            {t("pages.transactions.fields.spendType")}*
-            <select
-              name="spendType"
-              value={formState.spendType}
-              onChange={handleChange}
-              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              disabled={disabled || !formState.subcategoryId}
-              required
-            >
-              <option value="">{t("pages.transactions.placeholders.spendType")}</option>
-              <option value="essential">{t("pages.transactions.spendTypes.essential")}</option>
-              <option value="discretionary">
-                {t("pages.transactions.spendTypes.discretionary")}
-              </option>
-            </select>
-          </label>
+          {formState.type === "expense" ? (
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.spendType")}*
+              <select
+                name="spendType"
+                value={formState.spendType}
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                disabled={disabled || !formState.subcategoryId}
+                required
+              >
+                <option value="">
+                  {t("pages.transactions.placeholders.spendType")}
+                </option>
+                <option value="essential">
+                  {t("pages.transactions.spendTypes.essential")}
+                </option>
+                <option value="discretionary">
+                  {t("pages.transactions.spendTypes.discretionary")}
+                </option>
+              </select>
+            </label>
+          ) : (
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.incomeStability")}*
+              <select
+                name="incomeStability"
+                value={formState.incomeStability}
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                disabled={disabled || !formState.subcategoryId}
+                required
+              >
+                <option value="">
+                  {t("pages.transactions.placeholders.incomeStability")}
+                </option>
+                <option value="regular">
+                  {t("pages.transactions.incomeStabilities.regular")}
+                </option>
+                <option value="irregular">
+                  {t("pages.transactions.incomeStabilities.irregular")}
+                </option>
+              </select>
+            </label>
+          )}
         </div>
       </section>
 
