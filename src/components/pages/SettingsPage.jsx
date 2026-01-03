@@ -685,11 +685,20 @@ function AccountsTab({ user, profile }) {
   const { t } = useTranslation("app");
   const [accounts, setAccounts] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [household, setHousehold] = useState(null);
+  const [members, setMembers] = useState([]);
   const [formState, setFormState] = useState({
     name: "",
     openingBalance: "",
     openingBalanceDate: ""
   });
+  const [editingAccountId, setEditingAccountId] = useState(null);
+  const [editState, setEditState] = useState({
+    name: "",
+    openingBalance: "",
+    openingBalanceDate: ""
+  });
+  const [memberSelections, setMemberSelections] = useState({});
 
   useEffect(() => {
     if (!user) {
@@ -705,6 +714,38 @@ function AccountsTab({ user, profile }) {
     });
     return () => unsubscribe();
   }, [user]);
+
+  useEffect(() => {
+    if (!profile?.householdId) {
+      setHousehold(null);
+      setMembers([]);
+      return;
+    }
+    const householdRef = doc(db, "households", profile.householdId);
+    const unsubscribe = onSnapshot(householdRef, (snap) => {
+      setHousehold(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+    });
+    return () => unsubscribe();
+  }, [profile?.householdId]);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!household?.memberIds?.length) {
+        setMembers([]);
+        return;
+      }
+      const memberDocs = await Promise.all(
+        household.memberIds.map((memberId) =>
+          getDoc(doc(db, "users", memberId))
+        )
+      );
+      const data = memberDocs
+        .filter((docSnap) => docSnap.exists())
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+      setMembers(data);
+    };
+    fetchMembers();
+  }, [household?.memberIds]);
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -756,6 +797,7 @@ function AccountsTab({ user, profile }) {
       name: formState.name.trim(),
       openingBalance: Number(formState.openingBalance) || 0,
       openingBalanceDate: formState.openingBalanceDate || null,
+      sharedMemberIds: [],
       createdAt: serverTimestamp()
     });
     setFormState({
@@ -764,6 +806,79 @@ function AccountsTab({ user, profile }) {
       openingBalanceDate: ""
     });
   };
+
+  const handleEditStart = (account) => {
+    setEditingAccountId(account.id);
+    setEditState({
+      name: account.name || "",
+      openingBalance:
+        account.openingBalance !== undefined
+          ? String(account.openingBalance)
+          : "",
+      openingBalanceDate: account.openingBalanceDate || ""
+    });
+  };
+
+  const handleEditCancel = () => {
+    setEditingAccountId(null);
+    setEditState({
+      name: "",
+      openingBalance: "",
+      openingBalanceDate: ""
+    });
+  };
+
+  const handleEditSave = async (accountId) => {
+    if (!user || !editState.name.trim()) {
+      return;
+    }
+    await updateDoc(doc(db, "users", user.uid, "accounts", accountId), {
+      name: editState.name.trim(),
+      openingBalance: Number(editState.openingBalance) || 0,
+      openingBalanceDate: editState.openingBalanceDate || null
+    });
+    handleEditCancel();
+  };
+
+  const handleDelete = async (accountId) => {
+    if (!user) {
+      return;
+    }
+    await deleteDoc(doc(db, "users", user.uid, "accounts", accountId));
+  };
+
+  const handleAddSharedMember = async (account) => {
+    if (!user) {
+      return;
+    }
+    const nextMemberId = memberSelections[account.id];
+    if (!nextMemberId) {
+      return;
+    }
+    const sharedMemberIds = account.sharedMemberIds || [];
+    if (sharedMemberIds.includes(nextMemberId)) {
+      return;
+    }
+    await updateDoc(doc(db, "users", user.uid, "accounts", account.id), {
+      sharedMemberIds: [...sharedMemberIds, nextMemberId]
+    });
+    setMemberSelections((prev) => ({ ...prev, [account.id]: "" }));
+  };
+
+  const handleRemoveSharedMember = async (account, memberId) => {
+    if (!user) {
+      return;
+    }
+    const sharedMemberIds = account.sharedMemberIds || [];
+    await updateDoc(doc(db, "users", user.uid, "accounts", account.id), {
+      sharedMemberIds: sharedMemberIds.filter((id) => id !== memberId)
+    });
+  };
+
+  const getMemberLabel = (member) =>
+    member.displayName || member.email || member.id;
+
+  const availableMembers = members.filter((member) => member.id !== user?.uid);
 
   return (
     <div className="space-y-6">
@@ -824,24 +939,170 @@ function AccountsTab({ user, profile }) {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-white">{account.name}</span>
-                <span className="text-xs uppercase tracking-[0.2em] text-amber-200">
-                  {t("settings.accounts.openingBalanceLabel")}
-                </span>
+                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => handleEditStart(account)}
+                    className="rounded-lg border border-amber-400/40 px-3 py-1 text-amber-100 transition hover:bg-amber-500/20"
+                  >
+                    {t("settings.accounts.edit")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(account.id)}
+                    className="rounded-lg border border-red-400/40 px-3 py-1 text-red-200 transition hover:bg-red-500/20"
+                  >
+                    {t("settings.accounts.delete")}
+                  </button>
+                </div>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                <span>
-                  {t("settings.accounts.openingBalanceValue", {
-                    amount: Number(account.openingBalance || 0).toFixed(2)
-                  })}
-                </span>
-                {account.openingBalanceDate ? (
-                  <span>{account.openingBalanceDate}</span>
-                ) : null}
-                <span className="text-slate-300">
-                  {t("settings.accounts.currentBalanceValue", {
-                    amount: (currentBalances[account.id] || 0).toFixed(2)
-                  })}
-                </span>
+              {editingAccountId === account.id ? (
+                <div className="mt-3 grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]">
+                  <input
+                    value={editState.name}
+                    onChange={(event) =>
+                      setEditState((prev) => ({
+                        ...prev,
+                        name: event.target.value
+                      }))
+                    }
+                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                    placeholder={t("settings.accounts.namePlaceholder")}
+                  />
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editState.openingBalance}
+                    onChange={(event) =>
+                      setEditState((prev) => ({
+                        ...prev,
+                        openingBalance: event.target.value
+                      }))
+                    }
+                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                    placeholder={t("settings.accounts.openingBalancePlaceholder")}
+                  />
+                  <input
+                    type="date"
+                    value={editState.openingBalanceDate}
+                    onChange={(event) =>
+                      setEditState((prev) => ({
+                        ...prev,
+                        openingBalanceDate: event.target.value
+                      }))
+                    }
+                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleEditSave(account.id)}
+                      className="rounded-xl bg-amber-500/90 px-4 py-3 text-xs font-semibold text-slate-950 transition hover:bg-amber-400"
+                    >
+                      {t("settings.accounts.save")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleEditCancel}
+                      className="rounded-xl border border-white/10 px-4 py-3 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
+                    >
+                      {t("settings.accounts.cancel")}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+                    <span>
+                      {t("settings.accounts.openingBalanceLabel")}:{" "}
+                      {t("settings.accounts.openingBalanceValue", {
+                        amount: Number(account.openingBalance || 0).toFixed(2)
+                      })}
+                    </span>
+                    {account.openingBalanceDate ? (
+                      <span>{account.openingBalanceDate}</span>
+                    ) : null}
+                    <span className="text-slate-300">
+                      {t("settings.accounts.currentBalanceValue", {
+                        amount: (currentBalances[account.id] || 0).toFixed(2)
+                      })}
+                    </span>
+                  </div>
+                </>
+              )}
+              <div className="mt-4 space-y-2 text-xs text-slate-300">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                  {t("settings.accounts.householdUsersLabel")}
+                </p>
+                {(account.sharedMemberIds || []).length === 0 ? (
+                  <p className="text-xs text-slate-400">
+                    {t("settings.accounts.noHouseholdUsers")}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {(account.sharedMemberIds || [])
+                      .map((memberId) =>
+                        members.find((member) => member.id === memberId)
+                      )
+                      .filter(Boolean)
+                      .map((member) => (
+                        <span
+                          key={member.id}
+                          className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
+                        >
+                          {getMemberLabel(member)}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleRemoveSharedMember(account, member.id)
+                            }
+                            className="text-red-200 transition hover:text-red-100"
+                          >
+                            {t("settings.accounts.removeUser")}
+                          </button>
+                        </span>
+                      ))}
+                  </div>
+                )}
+                {availableMembers.length === 0 ? (
+                  <p className="text-xs text-slate-500">
+                    {t("settings.accounts.householdUsersEmpty")}
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={memberSelections[account.id] || ""}
+                      onChange={(event) =>
+                        setMemberSelections((prev) => ({
+                          ...prev,
+                          [account.id]: event.target.value
+                        }))
+                      }
+                      className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
+                    >
+                      <option value="">
+                        {t("settings.accounts.householdUserPlaceholder")}
+                      </option>
+                      {availableMembers
+                        .filter(
+                          (member) =>
+                            !(account.sharedMemberIds || []).includes(member.id)
+                        )
+                        .map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {getMemberLabel(member)}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => handleAddSharedMember(account)}
+                      className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                    >
+                      {t("settings.accounts.addHouseholdUser")}
+                    </button>
+                  </div>
+                )}
               </div>
             </li>
           ))}
