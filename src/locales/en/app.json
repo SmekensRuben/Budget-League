@@ -89,6 +89,7 @@
         "category": "Category",
         "subcategory": "Subcategory",
         "spendType": "Spend type",
+        "incomeStability": "Income stability",
         "paymentMethod": "Payment method",
         "account": "Account",
         "paidBy": "Paid by",
@@ -100,6 +101,7 @@
         "category": "Select a category",
         "subcategory": "Select a subcategory",
         "spendType": "Select a spend type",
+        "incomeStability": "Select an income stability",
         "paymentMethod": "Select a payment method",
         "account": "Select an account",
         "paidBy": "Select a household member"
@@ -117,6 +119,10 @@
       "spendTypes": {
         "essential": "Essential",
         "discretionary": "Discretionary"
+      },
+      "incomeStabilities": {
+        "regular": "Regular",
+        "irregular": "Irregular"
       },
       "actions": {
         "save": "Save transaction",
@@ -205,6 +211,10 @@
       "spendTypes": {
         "essential": "Essential",
         "discretionary": "Discretionary"
+      },
+      "incomeStabilities": {
+        "regular": "Regular",
+        "irregular": "Irregular"
       },
       "add": "Add category",
       "edit": "Edit",

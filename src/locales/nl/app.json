@@ -89,6 +89,7 @@
         "category": "Categorie",
         "subcategory": "Subcategorie",
         "spendType": "Spend type",
+        "incomeStability": "Inkomensstabiliteit",
         "paymentMethod": "Betaalmethode",
         "account": "Account",
         "paidBy": "Betaald door",
@@ -100,6 +101,7 @@
         "category": "Kies een categorie",
         "subcategory": "Kies een subcategorie",
         "spendType": "Kies een spend type",
+        "incomeStability": "Kies een inkomensstabiliteit",
         "paymentMethod": "Kies een betaalmethode",
         "account": "Kies een account",
         "paidBy": "Kies een householdlid"
@@ -117,6 +119,10 @@
       "spendTypes": {
         "essential": "Essential",
         "discretionary": "Discretionary"
+      },
+      "incomeStabilities": {
+        "regular": "Regelmatig",
+        "irregular": "Onregelmatig"
       },
       "actions": {
         "save": "Transactie opslaan",
@@ -205,6 +211,10 @@
       "spendTypes": {
         "essential": "Essential",
         "discretionary": "Discretionary"
+      },
+      "incomeStabilities": {
+        "regular": "Regelmatig",
+        "irregular": "Onregelmatig"
       },
       "add": "Categorie toevoegen",
       "edit": "Bewerken",

@@ -50,8 +50,8 @@ export default function TransactionsPage() {
   const { categories, paymentMethods, accounts, merchants, household, members } =
     useTransactionData({ user, profile });
 
-  const requiredFields = useMemo(
-    () => [
+  const requiredFields = useMemo(() => {
+    const baseFields = [
       "date",
       "amount",
       "currency",
@@ -59,11 +59,13 @@ export default function TransactionsPage() {
       "paidByUserId",
       "type",
       "categoryId",
-      "subcategoryId",
-      "spendType"
-    ],
-    []
-  );
+      "subcategoryId"
+    ];
+    if (formState.type === "income") {
+      return [...baseFields, "incomeStability"];
+    }
+    return [...baseFields, "spendType"];
+  }, [formState.type]);
 
   useEffect(() => {
     if (!editingTransactionId) {
@@ -234,7 +236,15 @@ export default function TransactionsPage() {
       subcategoryId: matchedSubcategory?.id || "",
       subcategory: matchedSubcategory?.name || transaction.subcategory || "",
       spendType:
-        transaction.spendType || matchedSubcategory?.spendType || "essential",
+        transaction.type === "expense"
+          ? transaction.spendType || matchedSubcategory?.spendType || "essential"
+          : "",
+      incomeStability:
+        transaction.type === "income"
+          ? transaction.incomeStability ||
+            matchedSubcategory?.incomeStability ||
+            "regular"
+          : "",
       paymentMethod: paymentMethods.some(
         (item) => item.name === transaction.paymentMethod
       )
