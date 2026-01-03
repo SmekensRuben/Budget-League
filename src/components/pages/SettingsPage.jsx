@@ -1260,6 +1260,18 @@ function HouseholdTab({ user, profile }) {
     setInviteError("");
   }, [inviteSearch]);
 
+  const getMemberLabel = (member) => {
+    if (!member) {
+      return "";
+    }
+    const fullName = [member.firstName, member.lastName].filter(Boolean).join(" ");
+    const displayName =
+      member.displayName && !member.displayName.includes("@")
+        ? member.displayName
+        : "";
+    return fullName || displayName || member.email || member.id || "";
+  };
+
   const handleCreateHousehold = async (event) => {
     event.preventDefault();
     if (!user || !householdName.trim()) {
@@ -1504,7 +1516,7 @@ function HouseholdTab({ user, profile }) {
                 >
                   <div>
                     <p className="text-sm font-semibold text-white">
-                      {member.displayName || member.email || member.id}
+                      {getMemberLabel(member)}
                     </p>
                     <p className="text-xs text-slate-400">{member.email}</p>
                     {household?.headId === member.id ? (
@@ -1585,7 +1597,7 @@ function HouseholdTab({ user, profile }) {
                     >
                       <div>
                         <p className="text-sm font-semibold text-white">
-                          {candidate.displayName || candidate.email || candidate.id}
+                          {getMemberLabel(candidate)}
                         </p>
                         <p className="text-xs text-slate-400">{candidate.email}</p>
                         {statusText ? (
