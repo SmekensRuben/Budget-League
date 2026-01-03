@@ -15,6 +15,17 @@ import {
 export default function StartPage() {
   const { t } = useTranslation("app");
   const { user, profile } = useAuthContext();
+  const parseAmount = (value) => {
+    if (typeof value === "number") {
+      return value;
+    }
+    if (!value) {
+      return 0;
+    }
+    const normalized = String(value).replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isNaN(parsed) ? 0 : parsed;
+  };
   const getLocalDateInputValue = (date) => {
     const offset = date.getTimezoneOffset() * 60 * 1000;
     return new Date(date.getTime() - offset).toISOString().split("T")[0];
@@ -148,7 +159,7 @@ export default function StartPage() {
   const summary = useMemo(() => {
     return filteredTransactions.reduce(
       (acc, transaction) => {
-        const amount = Number(transaction.amount) || 0;
+        const amount = parseAmount(transaction.amount);
         if (transaction.type === "income") {
           acc.income += amount;
         } else if (transaction.type === "expense") {
@@ -248,18 +259,18 @@ export default function StartPage() {
         if (!transaction.date) {
           return acc;
         }
-        const amount = Number(transaction.amount) || 0;
+        const amount = parseAmount(transaction.amount);
         const delta = transaction.type === "income" ? amount : -amount;
         acc[transaction.date] = (acc[transaction.date] || 0) + delta;
         return acc;
       }, {});
 
-      let running = Number(account.openingBalance) || 0;
+      let running = parseAmount(account.openingBalance);
       const firstDate = accountDates[0];
       if (firstDate) {
         accountTransactionsAll.forEach((transaction) => {
           if (transaction.date < firstDate) {
-            const amount = Number(transaction.amount) || 0;
+            const amount = parseAmount(transaction.amount);
             running += transaction.type === "income" ? amount : -amount;
           }
         });
@@ -336,6 +347,28 @@ export default function StartPage() {
     "#a78bfa",
     "#facc15"
   ];
+
+  const formatDateLabel = (date) => {
+    if (!date) {
+      return "—";
+    }
+    const parsed = new Date(`${date}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) {
+      return date;
+    }
+    return parsed.toLocaleDateString();
+  };
+
+  const formatBalanceLabel = (value) => {
+    const formatted = Number(value);
+    if (Number.isNaN(formatted)) {
+      return "—";
+    }
+    return formatted.toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2
+    });
+  };
 
   return (
     <AppLayout title={t("pages.start.title")} subtitle={t("pages.start.subtitle")}>
@@ -515,26 +548,67 @@ export default function StartPage() {
                     </p>
                   ) : (
                     <div className="mt-4 space-y-4">
-                      <div className="h-52 w-full">
-                        <svg
-                          viewBox="0 0 1000 200"
-                          className="h-full w-full"
-                          aria-label={t("pages.start.accounts.chartLabel")}
-                        >
-                          {accountChartLines.map((line, index) =>
-                            line ? (
-                              <polyline
-                                key={line.id}
-                                points={line.points}
-                                fill="none"
-                                stroke={chartColors[index % chartColors.length]}
-                                strokeWidth="3"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              />
-                            ) : null
-                          )}
-                        </svg>
+                      <div className="grid grid-cols-[auto_1fr] gap-3">
+                        <div className="flex h-52 flex-col justify-between text-xs text-slate-400">
+                          <span>
+                            {formatBalanceLabel(accountBalanceRange.max)}
+                          </span>
+                          <span>
+                            {formatBalanceLabel(
+                              (accountBalanceRange.max +
+                                accountBalanceRange.min) /
+                                2
+                            )}
+                          </span>
+                          <span>
+                            {formatBalanceLabel(accountBalanceRange.min)}
+                          </span>
+                        </div>
+                        <div className="h-52 w-full">
+                          <svg
+                            viewBox="0 0 1000 200"
+                            className="h-full w-full"
+                            aria-label={t("pages.start.accounts.chartLabel")}
+                          >
+                            {accountChartLines.map((line, index) =>
+                              line ? (
+                                <polyline
+                                  key={line.id}
+                                  points={line.points}
+                                  fill="none"
+                                  stroke={chartColors[index % chartColors.length]}
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              ) : null
+                            )}
+                          </svg>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-[auto_1fr] gap-3 text-xs text-slate-400">
+                        <span />
+                        <div className="flex items-center justify-between">
+                          <span>
+                            {formatDateLabel(accountChartData.dates[0])}
+                          </span>
+                          <span>
+                            {formatDateLabel(
+                              accountChartData.dates[
+                                Math.floor(
+                                  (accountChartData.dates.length - 1) / 2
+                                )
+                              ]
+                            )}
+                          </span>
+                          <span>
+                            {formatDateLabel(
+                              accountChartData.dates[
+                                accountChartData.dates.length - 1
+                              ]
+                            )}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex flex-wrap gap-3 text-xs text-slate-300">
                         {accountChartLines.map((line, index) =>
