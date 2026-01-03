@@ -43,6 +43,7 @@ export default function StartPage() {
   const [members, setMembers] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [filters, setFilters] = useState(() => ({
     ...getDefaultMonthRange(),
     paidByUserId: ""
@@ -52,6 +53,9 @@ export default function StartPage() {
   }));
   const [hoveredAccountPoint, setHoveredAccountPoint] = useState(null);
   const [hoveredExpenseKey, setHoveredExpenseKey] = useState(null);
+  const [selectedExpenseKey, setSelectedExpenseKey] = useState(null);
+  const [hoveredCategoryKey, setHoveredCategoryKey] = useState(null);
+  const [selectedCategoryKey, setSelectedCategoryKey] = useState(null);
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -117,6 +121,22 @@ export default function StartPage() {
         ...docSnap.data()
       }));
       setAccounts(data);
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setCategories([]);
+      return;
+    }
+    const categoriesRef = collection(db, "users", user.uid, "categories");
+    const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setCategories(data);
     });
     return () => unsubscribe();
   }, [user]);
@@ -371,6 +391,27 @@ export default function StartPage() {
 
   const expenseTotal = expenseBreakdown.essential + expenseBreakdown.discretionary;
 
+  const categoryLookup = useMemo(() => {
+    return categories.reduce((acc, category) => {
+      acc[category.id] = category;
+      return acc;
+    }, {});
+  }, [categories]);
+
+  const expenseTransactions = useMemo(() => {
+    return filteredTransactions.filter((transaction) => transaction.type === "expense");
+  }, [filteredTransactions]);
+
+  const spendTypeFilteredTransactions = useMemo(() => {
+    if (!selectedExpenseKey) {
+      return expenseTransactions;
+    }
+    return expenseTransactions.filter((transaction) => {
+      const spendType = transaction.spendType || "essential";
+      return spendType === selectedExpenseKey;
+    });
+  }, [expenseTransactions, selectedExpenseKey]);
+
   const expensePieSegments = useMemo(() => {
     if (expenseTotal <= 0) {
       return [];
@@ -400,6 +441,130 @@ export default function StartPage() {
       return item;
     });
   }, [expenseBreakdown, expenseTotal, t]);
+
+  const noCategoryLabel = t("pages.transactions.noCategory");
+  const noSubcategoryLabel = t("pages.start.dashboard.noSubcategory");
+
+  const resolveCategoryInfo = (transaction) => {
+    if (transaction.categoryId) {
+      const matchedCategory = categoryLookup[transaction.categoryId];
+      if (matchedCategory?.parentId) {
+        const parent = categoryLookup[matchedCategory.parentId];
+        if (parent) {
+          return { key: parent.id, label: parent.name };
+        }
+      } else if (matchedCategory) {
+        return { key: matchedCategory.id, label: matchedCategory.name };
+      }
+    }
+    if (transaction.subcategoryId) {
+      const matchedSubcategory = categoryLookup[transaction.subcategoryId];
+      if (matchedSubcategory?.parentId) {
+        const parent = categoryLookup[matchedSubcategory.parentId];
+        if (parent) {
+          return { key: parent.id, label: parent.name };
+        }
+      }
+    }
+    if (transaction.category) {
+      return { key: `name:${transaction.category}`, label: transaction.category };
+    }
+    return { key: "uncategorized", label: noCategoryLabel };
+  };
+
+  const resolveSubcategoryInfo = (transaction) => {
+    if (transaction.subcategoryId) {
+      const matchedSubcategory = categoryLookup[transaction.subcategoryId];
+      if (matchedSubcategory) {
+        return { key: matchedSubcategory.id, label: matchedSubcategory.name };
+      }
+    }
+    if (transaction.subcategory) {
+      return { key: `name:${transaction.subcategory}`, label: transaction.subcategory };
+    }
+    return { key: "no-subcategory", label: noSubcategoryLabel };
+  };
+
+  const categoryBreakdown = useMemo(() => {
+    if (spendTypeFilteredTransactions.length === 0) {
+      return [];
+    }
+    const totals = spendTypeFilteredTransactions.reduce((acc, transaction) => {
+      const amount = parseAmount(transaction.amount);
+      const { key, label } = resolveCategoryInfo(transaction);
+      if (!acc[key]) {
+        acc[key] = { key, label, value: 0 };
+      }
+      acc[key].value += amount;
+      return acc;
+    }, {});
+    return Object.values(totals).sort((a, b) => b.value - a.value);
+  }, [spendTypeFilteredTransactions, parseAmount, resolveCategoryInfo]);
+
+  const categoryTotal = useMemo(() => {
+    return categoryBreakdown.reduce((total, item) => total + item.value, 0);
+  }, [categoryBreakdown]);
+
+  const categoryPieSegments = useMemo(() => {
+    if (categoryTotal <= 0) {
+      return [];
+    }
+    let startAngle = -90;
+    return categoryBreakdown.map((item, index) => {
+      const sliceAngle = (item.value / categoryTotal) * 360;
+      const endAngle = startAngle + sliceAngle;
+      const segment = {
+        ...item,
+        colorIndex: index,
+        startAngle,
+        endAngle
+      };
+      startAngle = endAngle;
+      return segment;
+    });
+  }, [categoryBreakdown, categoryTotal]);
+
+  const subcategoryBreakdown = useMemo(() => {
+    if (!selectedCategoryKey) {
+      return [];
+    }
+    const totals = spendTypeFilteredTransactions.reduce((acc, transaction) => {
+      const { key: categoryKey } = resolveCategoryInfo(transaction);
+      if (categoryKey !== selectedCategoryKey) {
+        return acc;
+      }
+      const amount = parseAmount(transaction.amount);
+      const { key, label } = resolveSubcategoryInfo(transaction);
+      if (!acc[key]) {
+        acc[key] = { key, label, value: 0 };
+      }
+      acc[key].value += amount;
+      return acc;
+    }, {});
+    return Object.values(totals).sort((a, b) => b.value - a.value);
+  }, [
+    parseAmount,
+    resolveCategoryInfo,
+    resolveSubcategoryInfo,
+    selectedCategoryKey,
+    spendTypeFilteredTransactions
+  ]);
+
+  const selectedCategoryLabel = useMemo(() => {
+    if (!selectedCategoryKey) {
+      return "";
+    }
+    return categoryBreakdown.find((item) => item.key === selectedCategoryKey)?.label || "";
+  }, [categoryBreakdown, selectedCategoryKey]);
+
+  useEffect(() => {
+    if (
+      selectedCategoryKey &&
+      !categoryBreakdown.some((item) => item.key === selectedCategoryKey)
+    ) {
+      setSelectedCategoryKey(null);
+    }
+  }, [categoryBreakdown, selectedCategoryKey]);
 
   const formatDateLabel = (date) => {
     if (!date) {
@@ -942,79 +1107,320 @@ export default function StartPage() {
                     })}
                   </p>
                 </div>
-                <div className="mt-6 grid gap-6 lg:grid-cols-[240px_1fr]">
-                  <div className="relative flex items-center justify-center">
-                    {expensePieSegments.length === 0 ? (
-                      <div className="flex h-48 w-48 items-center justify-center rounded-full border border-dashed border-white/10 text-xs text-slate-400">
-                        {t("pages.start.dashboard.expensesEmpty")}
+                <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="relative flex items-center justify-center">
+                      {expensePieSegments.length === 0 ? (
+                        <div className="flex h-48 w-48 items-center justify-center rounded-full border border-dashed border-white/10 text-xs text-slate-400">
+                          {t("pages.start.dashboard.expensesEmpty")}
+                        </div>
+                      ) : (
+                        <svg
+                          viewBox="0 0 200 200"
+                          className="h-48 w-48"
+                          role="img"
+                          aria-label={t("pages.start.dashboard.expensesChartLabel")}
+                        >
+                          {expensePieSegments.map((segment) => (
+                            <path
+                              key={segment.key}
+                              d={describeArc(
+                                100,
+                                100,
+                                90,
+                                segment.startAngle,
+                                segment.endAngle
+                              )}
+                              fill={expenseChartColors[segment.key]}
+                              opacity={
+                                (hoveredExpenseKey &&
+                                  hoveredExpenseKey !== segment.key) ||
+                                (selectedExpenseKey &&
+                                  selectedExpenseKey !== segment.key)
+                                  ? 0.4
+                                  : 1
+                              }
+                              onMouseEnter={() =>
+                                setHoveredExpenseKey(segment.key)
+                              }
+                              onMouseLeave={() => setHoveredExpenseKey(null)}
+                              onClick={() =>
+                                setSelectedExpenseKey((prev) =>
+                                  prev === segment.key ? null : segment.key
+                                )
+                              }
+                              role="button"
+                              tabIndex={0}
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                  event.preventDefault();
+                                  setSelectedExpenseKey((prev) =>
+                                    prev === segment.key ? null : segment.key
+                                  );
+                                }
+                              }}
+                            />
+                          ))}
+                        </svg>
+                      )}
+                      <div className="pointer-events-none absolute text-center">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-100 drop-shadow">
+                          {hoveredExpenseKey
+                            ? t(
+                                `pages.transactions.spendTypes.${hoveredExpenseKey}`
+                              )
+                            : selectedExpenseKey
+                              ? t(
+                                  `pages.transactions.spendTypes.${selectedExpenseKey}`
+                                )
+                              : t("pages.start.dashboard.expensesCenterLabel")}
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-white">
+                          {formatCurrencyLabel(
+                            hoveredExpenseKey
+                              ? expenseBreakdown[hoveredExpenseKey] || 0
+                              : selectedExpenseKey
+                                ? expenseBreakdown[selectedExpenseKey] || 0
+                                : expenseTotal
+                          )}
+                        </p>
                       </div>
-                    ) : (
-                      <svg
-                        viewBox="0 0 200 200"
-                        className="h-48 w-48"
-                        role="img"
-                        aria-label={t("pages.start.dashboard.expensesChartLabel")}
-                      >
-                        {expensePieSegments.map((segment) => (
-                          <path
-                            key={segment.key}
-                            d={describeArc(
-                              100,
-                              100,
-                              90,
-                              segment.startAngle,
-                              segment.endAngle
-                            )}
-                            fill={expenseChartColors[segment.key]}
-                            opacity={
-                              hoveredExpenseKey &&
-                              hoveredExpenseKey !== segment.key
-                                ? 0.4
-                                : 1
-                            }
-                            onMouseEnter={() => setHoveredExpenseKey(segment.key)}
-                            onMouseLeave={() => setHoveredExpenseKey(null)}
-                          />
-                        ))}
-                      </svg>
-                    )}
-                    <div className="pointer-events-none absolute text-center">
-                      <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                        {hoveredExpenseKey
-                          ? t(
-                              `pages.transactions.spendTypes.${hoveredExpenseKey}`
+                    </div>
+                    <div className="space-y-3 text-sm text-slate-300">
+                      {["essential", "discretionary"].map((key) => (
+                        <div
+                          key={key}
+                          className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition ${
+                            selectedExpenseKey === key
+                              ? "border-amber-400/70 bg-slate-900/70"
+                              : "border-white/5 bg-slate-900/50"
+                          }`}
+                          onMouseEnter={() => setHoveredExpenseKey(key)}
+                          onMouseLeave={() => setHoveredExpenseKey(null)}
+                          onClick={() =>
+                            setSelectedExpenseKey((prev) =>
+                              prev === key ? null : key
                             )
-                          : t("pages.start.dashboard.expensesCenterLabel")}
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-white">
-                        {formatCurrencyLabel(
-                          hoveredExpenseKey
-                            ? expenseBreakdown[hoveredExpenseKey] || 0
-                            : expenseTotal
-                        )}
-                      </p>
+                          }
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              setSelectedExpenseKey((prev) =>
+                                prev === key ? null : key
+                              );
+                            }
+                          }}
+                        >
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: expenseChartColors[key] }}
+                            />
+                            {t(`pages.transactions.spendTypes.${key}`)}
+                          </span>
+                          <span className="font-semibold text-white">
+                            {formatCurrencyLabel(expenseBreakdown[key] || 0)}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div className="space-y-3 text-sm text-slate-300">
-                    {["essential", "discretionary"].map((key) => (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-slate-900/50 px-3 py-2"
-                        onMouseEnter={() => setHoveredExpenseKey(key)}
-                        onMouseLeave={() => setHoveredExpenseKey(null)}
-                      >
-                        <span className="flex items-center gap-2">
-                          <span
-                            className="h-2 w-2 rounded-full"
-                            style={{ backgroundColor: expenseChartColors[key] }}
-                          />
-                          {t(`pages.transactions.spendTypes.${key}`)}
-                        </span>
-                        <span className="font-semibold text-white">
-                          {formatCurrencyLabel(expenseBreakdown[key] || 0)}
-                        </span>
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {t("pages.start.dashboard.expensesByCategoryTitle")}
+                        </p>
+                        <p className="text-xs text-slate-400">
+                          {t("pages.start.dashboard.expensesByCategorySubtitle")}
+                        </p>
                       </div>
-                    ))}
+                      {selectedExpenseKey ? (
+                        <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
+                          {t(`pages.transactions.spendTypes.${selectedExpenseKey}`)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="relative flex items-center justify-center">
+                      {categoryPieSegments.length === 0 ? (
+                        <div className="flex h-48 w-48 items-center justify-center rounded-full border border-dashed border-white/10 text-xs text-slate-400">
+                          {t("pages.start.dashboard.expensesCategoriesEmpty")}
+                        </div>
+                      ) : (
+                        <svg
+                          viewBox="0 0 200 200"
+                          className="h-48 w-48"
+                          role="img"
+                          aria-label={t(
+                            "pages.start.dashboard.expensesCategoriesChartLabel"
+                          )}
+                        >
+                          {categoryPieSegments.map((segment, index) => {
+                            const isInactive =
+                              (hoveredCategoryKey &&
+                                hoveredCategoryKey !== segment.key) ||
+                              (selectedCategoryKey &&
+                                selectedCategoryKey !== segment.key);
+                            return (
+                              <path
+                                key={segment.key}
+                                d={describeArc(
+                                  100,
+                                  100,
+                                  90,
+                                  segment.startAngle,
+                                  segment.endAngle
+                                )}
+                                fill={
+                                  chartColors[index % chartColors.length] ||
+                                  "#38bdf8"
+                                }
+                                opacity={isInactive ? 0.35 : 1}
+                                onMouseEnter={() =>
+                                  setHoveredCategoryKey(segment.key)
+                                }
+                                onMouseLeave={() => setHoveredCategoryKey(null)}
+                                onClick={() =>
+                                  setSelectedCategoryKey((prev) =>
+                                    prev === segment.key ? null : segment.key
+                                  )
+                                }
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    setSelectedCategoryKey((prev) =>
+                                      prev === segment.key ? null : segment.key
+                                    );
+                                  }
+                                }}
+                              />
+                            );
+                          })}
+                        </svg>
+                      )}
+                      <div className="pointer-events-none absolute text-center">
+                        <p className="text-xs uppercase tracking-[0.2em] text-slate-100 drop-shadow">
+                          {hoveredCategoryKey
+                            ? categoryBreakdown.find(
+                                (item) => item.key === hoveredCategoryKey
+                              )?.label
+                            : selectedCategoryLabel ||
+                              t("pages.start.dashboard.expensesCategoriesCenterLabel")}
+                        </p>
+                        <p className="mt-2 text-lg font-semibold text-white">
+                          {formatCurrencyLabel(
+                            hoveredCategoryKey
+                              ? categoryBreakdown.find(
+                                  (item) => item.key === hoveredCategoryKey
+                                )?.value || 0
+                              : selectedCategoryKey
+                                ? categoryBreakdown.find(
+                                    (item) => item.key === selectedCategoryKey
+                                  )?.value || 0
+                                : categoryTotal
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="space-y-3 text-sm text-slate-300">
+                      {categoryBreakdown.length === 0 ? (
+                        <p className="text-xs text-slate-400">
+                          {t("pages.start.dashboard.expensesCategoriesEmpty")}
+                        </p>
+                      ) : (
+                        categoryBreakdown.map((item, index) => (
+                          <div
+                            key={item.key}
+                            className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition ${
+                              selectedCategoryKey === item.key
+                                ? "border-amber-400/70 bg-slate-900/70"
+                                : "border-white/5 bg-slate-900/50"
+                            }`}
+                            onMouseEnter={() => setHoveredCategoryKey(item.key)}
+                            onMouseLeave={() => setHoveredCategoryKey(null)}
+                            onClick={() =>
+                              setSelectedCategoryKey((prev) =>
+                                prev === item.key ? null : item.key
+                              )
+                            }
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setSelectedCategoryKey((prev) =>
+                                  prev === item.key ? null : item.key
+                                );
+                              }
+                            }}
+                          >
+                            <span className="flex items-center gap-2">
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{
+                                  backgroundColor:
+                                    chartColors[index % chartColors.length]
+                                }}
+                              />
+                              {item.label}
+                            </span>
+                            <span className="font-semibold text-white">
+                              {formatCurrencyLabel(item.value)}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    {selectedCategoryKey ? (
+                      <div className="space-y-3 text-sm text-slate-300">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold text-white">
+                            {t("pages.start.dashboard.expensesSubcategoriesTitle", {
+                              category: selectedCategoryLabel
+                            })}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedCategoryKey(null)}
+                            className="text-xs text-amber-200 hover:text-amber-100"
+                          >
+                            {t("pages.start.dashboard.expensesSubcategoriesReset")}
+                          </button>
+                        </div>
+                        {subcategoryBreakdown.length === 0 ? (
+                          <p className="text-xs text-slate-400">
+                            {t("pages.start.dashboard.expensesSubcategoriesEmpty")}
+                          </p>
+                        ) : (
+                          subcategoryBreakdown.map((item, index) => (
+                            <div
+                              key={item.key}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-white/5 bg-slate-900/50 px-3 py-2"
+                            >
+                              <span className="flex items-center gap-2">
+                                <span
+                                  className="h-2 w-2 rounded-full"
+                                  style={{
+                                    backgroundColor:
+                                      chartColors[
+                                        (index + 2) % chartColors.length
+                                      ]
+                                  }}
+                                />
+                                {item.label}
+                              </span>
+                              <span className="font-semibold text-white">
+                                {formatCurrencyLabel(item.value)}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               </div>
