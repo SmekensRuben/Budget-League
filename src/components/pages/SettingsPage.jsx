@@ -74,7 +74,9 @@ export default function SettingsPage() {
           {activeTab === "categories" ? (
             <CategoriesTab user={user} />
           ) : null}
-          {activeTab === "accounts" ? <AccountsTab user={user} /> : null}
+          {activeTab === "accounts" ? (
+            <AccountsTab user={user} profile={profile} />
+          ) : null}
           {activeTab === "household" ? (
             <HouseholdTab user={user} profile={profile} />
           ) : null}
@@ -369,9 +371,10 @@ function CategoriesTab({ user }) {
   );
 }
 
-function AccountsTab({ user }) {
+function AccountsTab({ user, profile }) {
   const { t } = useTranslation("app");
   const [accounts, setAccounts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [formState, setFormState] = useState({
     name: "",
     openingBalance: "",
@@ -392,6 +395,47 @@ function AccountsTab({ user }) {
     });
     return () => unsubscribe();
   }, [user]);
+
+  useEffect(() => {
+    if (!profile?.householdId) {
+      setTransactions([]);
+      return;
+    }
+    const transactionsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "transactions"
+    );
+    const unsubscribe = onSnapshot(transactionsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setTransactions(data);
+    });
+    return () => unsubscribe();
+  }, [profile?.householdId]);
+
+  const currentBalances = useMemo(() => {
+    return accounts.reduce((acc, account) => {
+      const openingBalance = Number(account.openingBalance) || 0;
+      const openingDate = account.openingBalanceDate;
+      const total = transactions.reduce((sum, transaction) => {
+        if (transaction.accountId !== account.id) {
+          return sum;
+        }
+        if (openingDate && transaction.date && transaction.date < openingDate) {
+          return sum;
+        }
+        const amount = Number(transaction.amount) || 0;
+        const delta = transaction.type === "income" ? amount : -amount;
+        return sum + delta;
+      }, openingBalance);
+      acc[account.id] = total;
+      return acc;
+    }, {});
+  }, [accounts, transactions]);
 
   const handleAdd = async (event) => {
     event.preventDefault();
@@ -483,6 +527,11 @@ function AccountsTab({ user }) {
                 {account.openingBalanceDate ? (
                   <span>{account.openingBalanceDate}</span>
                 ) : null}
+                <span className="text-slate-300">
+                  {t("settings.accounts.currentBalanceValue", {
+                    amount: (currentBalances[account.id] || 0).toFixed(2)
+                  })}
+                </span>
               </div>
             </li>
           ))}

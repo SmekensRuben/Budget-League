@@ -15,20 +15,31 @@ import {
 export default function StartPage() {
   const { t } = useTranslation("app");
   const { user, profile } = useAuthContext();
+  const getLocalDateInputValue = (date) => {
+    const offset = date.getTimezoneOffset() * 60 * 1000;
+    return new Date(date.getTime() - offset).toISOString().split("T")[0];
+  };
+  const getDefaultMonthRange = () => {
+    const today = new Date();
+    const start = new Date(today.getFullYear(), today.getMonth(), 1);
+    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return {
+      startDate: getLocalDateInputValue(start),
+      endDate: getLocalDateInputValue(end)
+    };
+  };
   const [household, setHousehold] = useState(null);
   const [members, setMembers] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
-  const [filters, setFilters] = useState({
-    startDate: "",
-    endDate: "",
+  const [filters, setFilters] = useState(() => ({
+    ...getDefaultMonthRange(),
     paidByUserId: ""
-  });
-  const [accountFilters, setAccountFilters] = useState({
-    startDate: "",
-    endDate: "",
+  }));
+  const [accountFilters, setAccountFilters] = useState(() => ({
+    ...getDefaultMonthRange(),
     accountIds: []
-  });
+  }));
 
   useEffect(() => {
     if (!profile?.householdId) {
