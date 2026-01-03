@@ -9,6 +9,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   serverTimestamp,
   setDoc,
@@ -1215,6 +1216,12 @@ function HouseholdTab({ user, profile }) {
   const [householdName, setHouseholdName] = useState("");
   const [household, setHousehold] = useState(null);
   const [members, setMembers] = useState([]);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviteResults, setInviteResults] = useState([]);
+  const [inviteStatus, setInviteStatus] = useState("");
+  const [inviteError, setInviteError] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteActionStatus, setInviteActionStatus] = useState("");
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -1247,6 +1254,11 @@ function HouseholdTab({ user, profile }) {
     };
     fetchMembers();
   }, [household?.memberIds]);
+
+  useEffect(() => {
+    setInviteStatus("");
+    setInviteError("");
+  }, [inviteSearch]);
 
   const handleCreateHousehold = async (event) => {
     event.preventDefault();
@@ -1284,6 +1296,128 @@ function HouseholdTab({ user, profile }) {
     await updateDoc(doc(db, "households", household.id), { headId: memberId });
   };
 
+  const handleSearchUsers = async (event) => {
+    event.preventDefault();
+    if (!inviteSearch.trim()) {
+      setInviteResults([]);
+      return;
+    }
+    setInviteLoading(true);
+    setInviteStatus("");
+    setInviteError("");
+    try {
+      const snapshot = await getDocs(collection(db, "users"));
+      const searchTerm = inviteSearch.trim().toLowerCase();
+      const results = snapshot.docs
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+        .filter((candidate) => {
+          const displayName = (candidate.displayName || "").toLowerCase();
+          const email = (candidate.email || "").toLowerCase();
+          return (
+            candidate.id !== user?.uid &&
+            (displayName.includes(searchTerm) || email.includes(searchTerm))
+          );
+        });
+      setInviteResults(results);
+      if (results.length === 0) {
+        setInviteStatus(t("settings.household.inviteNoResults"));
+      }
+    } catch (error) {
+      console.error(error);
+      setInviteError(t("settings.household.inviteError"));
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
+  const handleSendInvite = async (candidate) => {
+    if (!user || !household) {
+      setInviteError(t("settings.household.inviteMissingHousehold"));
+      return;
+    }
+    if (candidate.householdId === household.id) {
+      setInviteError(t("settings.household.inviteAlreadyMember"));
+      return;
+    }
+    if (candidate.householdId) {
+      setInviteError(t("settings.household.inviteAlreadyInHousehold"));
+      return;
+    }
+    if (candidate.householdInvite) {
+      setInviteError(t("settings.household.invitePendingNotice"));
+      return;
+    }
+    setInviteError("");
+    setInviteStatus("");
+    const invitePayload = {
+      householdId: household.id,
+      householdName: household.name || "",
+      invitedById: user.uid,
+      invitedByName: user.displayName || user.email || "",
+      createdAt: serverTimestamp()
+    };
+    await updateDoc(doc(db, "users", candidate.id), {
+      householdInvite: invitePayload
+    });
+    setInviteStatus(t("settings.household.inviteSent"));
+    setInviteResults((prev) =>
+      prev.map((entry) =>
+        entry.id === candidate.id
+          ? { ...entry, householdInvite: invitePayload }
+          : entry
+      )
+    );
+  };
+
+  const handleAcceptInvite = async () => {
+    if (!user || !profile?.householdInvite) {
+      return;
+    }
+    setInviteActionStatus("");
+    const invite = profile.householdInvite;
+    const householdRef = doc(db, "households", invite.householdId);
+    const householdSnap = await getDoc(householdRef);
+    const userRef = doc(db, "users", user.uid);
+
+    if (!householdSnap.exists()) {
+      await updateDoc(userRef, { householdInvite: null });
+      setInviteActionStatus(t("settings.household.inviteMissing"));
+      return;
+    }
+
+    const householdData = householdSnap.data();
+    const memberIds = householdData.memberIds || [];
+    if (!memberIds.includes(user.uid)) {
+      await updateDoc(householdRef, {
+        memberIds: [...memberIds, user.uid]
+      });
+    }
+    await updateDoc(userRef, {
+      householdId: invite.householdId,
+      householdInvite: null
+    });
+  };
+
+  const handleDeclineInvite = async () => {
+    if (!user || !profile?.householdInvite) {
+      return;
+    }
+    await updateDoc(doc(db, "users", user.uid), { householdInvite: null });
+  };
+
+  const getCandidateStatus = (candidate) => {
+    if (candidate.householdId === household?.id) {
+      return t("settings.household.inviteAlreadyMember");
+    }
+    if (candidate.householdId) {
+      return t("settings.household.inviteAlreadyInHousehold");
+    }
+    if (candidate.householdInvite) {
+      return t("settings.household.invitePending");
+    }
+    return "";
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -1294,20 +1428,60 @@ function HouseholdTab({ user, profile }) {
       </div>
 
       {!profile?.householdId ? (
-        <form className="flex flex-col gap-3 md:flex-row" onSubmit={handleCreateHousehold}>
-          <input
-            value={householdName}
-            onChange={(event) => setHouseholdName(event.target.value)}
-            className="flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-            placeholder={t("settings.household.namePlaceholder")}
-          />
-          <button
-            type="submit"
-            className="rounded-xl bg-amber-500/90 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+        <div className="space-y-4">
+          {profile?.householdInvite ? (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+              <p className="text-sm font-semibold text-amber-100">
+                {t("settings.household.inviteReceivedTitle")}
+              </p>
+              <p className="mt-2 text-sm text-slate-200">
+                {t("settings.household.inviteReceived", {
+                  householdName:
+                    profile.householdInvite.householdName ||
+                    t("settings.household.name")
+                })}
+              </p>
+              {inviteActionStatus ? (
+                <p className="mt-2 text-xs text-amber-200">
+                  {inviteActionStatus}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleAcceptInvite}
+                  className="rounded-lg bg-amber-400/90 px-3 py-2 text-xs font-semibold text-slate-950 transition hover:bg-amber-300"
+                >
+                  {t("settings.household.inviteAccept")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeclineInvite}
+                  className="rounded-lg border border-white/10 px-3 py-2 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
+                >
+                  {t("settings.household.inviteDecline")}
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <form
+            className="flex flex-col gap-3 md:flex-row"
+            onSubmit={handleCreateHousehold}
           >
-            {t("settings.household.create")}
-          </button>
-        </form>
+            <input
+              value={householdName}
+              onChange={(event) => setHouseholdName(event.target.value)}
+              className="flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+              placeholder={t("settings.household.namePlaceholder")}
+            />
+            <button
+              type="submit"
+              className="rounded-xl bg-amber-500/90 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+            >
+              {t("settings.household.create")}
+            </button>
+          </form>
+        </div>
       ) : (
         <div className="space-y-4">
           <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
@@ -1362,6 +1536,81 @@ function HouseholdTab({ user, profile }) {
                 </div>
               ))
             )}
+          </div>
+
+          <div className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-white">
+                {t("settings.household.inviteTitle")}
+              </p>
+              <p className="text-xs text-slate-400">
+                {t("settings.household.inviteSubtitle")}
+              </p>
+            </div>
+            <form
+              className="flex flex-col gap-2 md:flex-row"
+              onSubmit={handleSearchUsers}
+            >
+              <input
+                value={inviteSearch}
+                onChange={(event) => setInviteSearch(event.target.value)}
+                className="flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white"
+                placeholder={t("settings.household.inviteSearchPlaceholder")}
+              />
+              <button
+                type="submit"
+                className="rounded-xl border border-white/10 px-4 py-3 text-xs font-semibold text-slate-200 transition hover:bg-white/10"
+              >
+                {inviteLoading
+                  ? t("settings.household.inviteSearching")
+                  : t("settings.household.inviteSearchButton")}
+              </button>
+            </form>
+            {inviteError ? (
+              <p className="text-xs text-red-200">{inviteError}</p>
+            ) : null}
+            {inviteStatus ? (
+              <p className="text-xs text-amber-200">{inviteStatus}</p>
+            ) : null}
+            {inviteResults.length > 0 ? (
+              <div className="space-y-2">
+                {inviteResults.map((candidate) => {
+                  const statusText = getCandidateStatus(candidate);
+                  const canInvite =
+                    !statusText && candidate.id !== user?.uid && household;
+                  return (
+                    <div
+                      key={candidate.id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {candidate.displayName || candidate.email || candidate.id}
+                        </p>
+                        <p className="text-xs text-slate-400">{candidate.email}</p>
+                        {statusText ? (
+                          <p className="mt-1 text-xs text-amber-200">
+                            {statusText}
+                          </p>
+                        ) : null}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSendInvite(candidate)}
+                        disabled={!canInvite}
+                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                          canInvite
+                            ? "border-amber-400/40 text-amber-100 hover:bg-amber-500/20"
+                            : "border-white/10 text-slate-500"
+                        }`}
+                      >
+                        {t("settings.household.inviteSend")}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
         </div>
       )}
