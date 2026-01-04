@@ -177,8 +177,11 @@
         "budget": "Budget",
         "percent": "% besteed"
       },
+      "memberFilterLabel": "Gebruiker",
+      "memberFilterAll": "Alle gebruikers",
       "monthlyBudget": "Maandbudget (€)",
       "budgetBySubcategory": "Budgetten koppelen aan subcategorieën",
+      "memberBudgets": "Budgetten per gebruiker",
       "totalBudget": "Totaalbudget (€)",
       "budgetPlaceholder": "0,00",
       "save": "Budget opslaan",
@@ -202,6 +205,8 @@
       "memberEstimates": "Geschat inkomen per lid",
       "memberEmpty": "Nog geen householdleden beschikbaar.",
       "projectedIncomeLabel": "Geschatte maandelijkse inkomsten",
+      "memberBudgetLabel": "Gepland budget",
+      "memberRemainingLabel": "Geschat resterend",
       "noHousehold": "Word lid van een household om inzichten te bekijken."
     }
   },
