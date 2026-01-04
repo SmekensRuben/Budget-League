@@ -172,7 +172,13 @@
       "description": "Set budgets per category and track spend as the month progresses.",
       "empty": "No expense categories available yet.",
       "monthLabel": "Month",
+      "sortLabel": "Sort by",
+      "sortOptions": {
+        "budget": "Budget",
+        "percent": "% spent"
+      },
       "monthlyBudget": "Monthly budget (€)",
+      "budgetBySubcategory": "Allocate budgets to subcategories",
       "totalBudget": "Total budget (€)",
       "budgetPlaceholder": "0.00",
       "save": "Save budget",
