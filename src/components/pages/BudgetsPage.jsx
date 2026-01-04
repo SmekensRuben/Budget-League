@@ -184,27 +184,48 @@ export default function BudgetsPage() {
 
   const formatCurrency = (value) => {
     const amount = Number(value) || 0;
-    return amount.toLocaleString(undefined, {
+    return `€${amount.toLocaleString(undefined, {
       minimumFractionDigits: 0,
       maximumFractionDigits: 2
-    });
+    })}`;
   };
 
   const budgetItems = useMemo(() => {
-    return expenseCategories.map((category) => {
+    const items = expenseCategories.map((category) => {
       const budget = parseAmount(category.monthlyBudget);
       const spent = monthlySpend[category.id] || 0;
-      const ratio = budget > 0 ? Math.min(spent / budget, 1) : 0;
+      const fillRatio = budget > 0 ? spent / budget : 0;
+      const ratio = budget > 0 ? Math.min(fillRatio, 1) : 0;
       return {
         id: category.id,
         name: category.name,
         budget,
         spent,
+        fillRatio,
         ratio,
         isOverBudget: budget > 0 && spent > budget
       };
     });
+    return [...items].sort((a, b) => {
+      const ratioDiff = b.fillRatio - a.fillRatio;
+      if (ratioDiff !== 0) {
+        return ratioDiff;
+      }
+      return a.name.localeCompare(b.name);
+    });
   }, [expenseCategories, monthlySpend]);
+
+  const totalBudget = useMemo(() => {
+    return budgetItems.reduce((total, item) => total + item.budget, 0);
+  }, [budgetItems]);
+
+  const totalSpent = useMemo(() => {
+    return budgetItems.reduce((total, item) => total + item.spent, 0);
+  }, [budgetItems]);
+
+  const totalFillRatio = totalBudget > 0 ? totalSpent / totalBudget : 0;
+  const totalRatio = totalBudget > 0 ? Math.min(totalFillRatio, 1) : 0;
+  const isOverTotalBudget = totalBudget > 0 && totalSpent > totalBudget;
 
   const handleBudgetSave = async (categoryId) => {
     if (!profile?.householdId) {
@@ -282,6 +303,32 @@ export default function BudgetsPage() {
             </div>
             <div className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               {monthLabel}
+            </div>
+            <div className="mt-6 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {t("pages.budgets.totalBudget")}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {t("pages.budgets.spent", {
+                      spent: formatCurrency(totalSpent),
+                      budget: formatCurrency(totalBudget)
+                    })}
+                  </p>
+                </div>
+                <div className="text-xs font-semibold text-slate-300">
+                  {Math.round(totalFillRatio * 100)}%
+                </div>
+              </div>
+              <div className="mt-3 h-3 w-full rounded-full bg-slate-800">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    isOverTotalBudget ? "bg-rose-400" : "bg-emerald-400"
+                  }`}
+                  style={{ width: `${totalRatio * 100}%` }}
+                />
+              </div>
             </div>
             {activeTab === "overview" ? (
               <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
