@@ -799,6 +799,8 @@ function AccountsTab({ user, profile }) {
   });
   const [memberSelections, setMemberSelections] = useState({});
 
+  const getAccountOwnerId = (account) => account.ownerId || user?.uid;
+
   useEffect(() => {
     if (!user) {
       return;
@@ -896,6 +898,7 @@ function AccountsTab({ user, profile }) {
       name: formState.name.trim(),
       openingBalance: Number(formState.openingBalance) || 0,
       openingBalanceDate: formState.openingBalanceDate || null,
+      ownerId: user.uid,
       sharedMemberIds: [],
       createdAt: serverTimestamp()
     });
@@ -931,11 +934,28 @@ function AccountsTab({ user, profile }) {
     if (!user || !editState.name.trim()) {
       return;
     }
-    await updateDoc(doc(db, "users", user.uid, "accounts", accountId), {
+    const account = accounts.find((item) => item.id === accountId);
+    const ownerId = getAccountOwnerId(account || {});
+    if (ownerId !== user.uid) {
+      return;
+    }
+    const sharedMemberIds = account?.sharedMemberIds || [];
+    const updatePayload = {
       name: editState.name.trim(),
       openingBalance: Number(editState.openingBalance) || 0,
-      openingBalanceDate: editState.openingBalanceDate || null
+      openingBalanceDate: editState.openingBalanceDate || null,
+      ownerId
+    };
+    await updateDoc(doc(db, "users", user.uid, "accounts", accountId), {
+      ...updatePayload
     });
+    await Promise.all(
+      sharedMemberIds.map((memberId) =>
+        setDoc(doc(db, "users", memberId, "accounts", accountId), updatePayload, {
+          merge: true
+        })
+      )
+    );
     handleEditCancel();
   };
 
@@ -943,11 +963,26 @@ function AccountsTab({ user, profile }) {
     if (!user) {
       return;
     }
+    const account = accounts.find((item) => item.id === accountId);
+    const ownerId = getAccountOwnerId(account || {});
+    if (ownerId !== user.uid) {
+      return;
+    }
+    const sharedMemberIds = account?.sharedMemberIds || [];
+    await Promise.all(
+      sharedMemberIds.map((memberId) =>
+        deleteDoc(doc(db, "users", memberId, "accounts", accountId))
+      )
+    );
     await deleteDoc(doc(db, "users", user.uid, "accounts", accountId));
   };
 
   const handleAddSharedMember = async (account) => {
     if (!user) {
+      return;
+    }
+    const ownerId = getAccountOwnerId(account);
+    if (ownerId !== user.uid) {
       return;
     }
     const nextMemberId = memberSelections[account.id];
@@ -961,6 +996,14 @@ function AccountsTab({ user, profile }) {
     await updateDoc(doc(db, "users", user.uid, "accounts", account.id), {
       sharedMemberIds: [...sharedMemberIds, nextMemberId]
     });
+    await setDoc(doc(db, "users", nextMemberId, "accounts", account.id), {
+      name: account.name,
+      openingBalance: account.openingBalance || 0,
+      openingBalanceDate: account.openingBalanceDate || null,
+      ownerId,
+      sharedMemberIds: [...sharedMemberIds, nextMemberId],
+      createdAt: account.createdAt || serverTimestamp()
+    });
     setMemberSelections((prev) => ({ ...prev, [account.id]: "" }));
   };
 
@@ -968,10 +1011,15 @@ function AccountsTab({ user, profile }) {
     if (!user) {
       return;
     }
+    const ownerId = getAccountOwnerId(account);
+    if (ownerId !== user.uid) {
+      return;
+    }
     const sharedMemberIds = account.sharedMemberIds || [];
     await updateDoc(doc(db, "users", user.uid, "accounts", account.id), {
       sharedMemberIds: sharedMemberIds.filter((id) => id !== memberId)
     });
+    await deleteDoc(doc(db, "users", memberId, "accounts", account.id));
   };
 
   const getMemberLabel = (member) =>
@@ -1038,22 +1086,24 @@ function AccountsTab({ user, profile }) {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-white">{account.name}</span>
-                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => handleEditStart(account)}
-                    className="rounded-lg border border-amber-400/40 px-3 py-1 text-amber-100 transition hover:bg-amber-500/20"
-                  >
-                    {t("settings.accounts.edit")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(account.id)}
-                    className="rounded-lg border border-red-400/40 px-3 py-1 text-red-200 transition hover:bg-red-500/20"
-                  >
-                    {t("settings.accounts.delete")}
-                  </button>
-                </div>
+                {getAccountOwnerId(account) === user?.uid ? (
+                  <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => handleEditStart(account)}
+                      className="rounded-lg border border-amber-400/40 px-3 py-1 text-amber-100 transition hover:bg-amber-500/20"
+                    >
+                      {t("settings.accounts.edit")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(account.id)}
+                      className="rounded-lg border border-red-400/40 px-3 py-1 text-red-200 transition hover:bg-red-500/20"
+                    >
+                      {t("settings.accounts.delete")}
+                    </button>
+                  </div>
+                ) : null}
               </div>
               {editingAccountId === account.id ? (
                 <div className="mt-3 grid gap-3 md:grid-cols-[2fr_1fr_1fr_auto]">
@@ -1129,80 +1179,84 @@ function AccountsTab({ user, profile }) {
                   </div>
                 </>
               )}
-              <div className="mt-4 space-y-2 text-xs text-slate-300">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                  {t("settings.accounts.householdUsersLabel")}
-                </p>
-                {(account.sharedMemberIds || []).length === 0 ? (
-                  <p className="text-xs text-slate-400">
-                    {t("settings.accounts.noHouseholdUsers")}
+              {getAccountOwnerId(account) === user?.uid ? (
+                <div className="mt-4 space-y-2 text-xs text-slate-300">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {t("settings.accounts.householdUsersLabel")}
                   </p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {(account.sharedMemberIds || [])
-                      .map((memberId) =>
-                        members.find((member) => member.id === memberId)
-                      )
-                      .filter(Boolean)
-                      .map((member) => (
-                        <span
-                          key={member.id}
-                          className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
-                        >
-                          {getMemberLabel(member)}
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleRemoveSharedMember(account, member.id)
-                            }
-                            className="text-red-200 transition hover:text-red-100"
-                          >
-                            {t("settings.accounts.removeUser")}
-                          </button>
-                        </span>
-                      ))}
-                  </div>
-                )}
-                {availableMembers.length === 0 ? (
-                  <p className="text-xs text-slate-500">
-                    {t("settings.accounts.householdUsersEmpty")}
-                  </p>
-                ) : (
-                  <div className="flex flex-wrap items-center gap-2">
-                    <select
-                      value={memberSelections[account.id] || ""}
-                      onChange={(event) =>
-                        setMemberSelections((prev) => ({
-                          ...prev,
-                          [account.id]: event.target.value
-                        }))
-                      }
-                      className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
-                    >
-                      <option value="">
-                        {t("settings.accounts.householdUserPlaceholder")}
-                      </option>
-                      {availableMembers
-                        .filter(
-                          (member) =>
-                            !(account.sharedMemberIds || []).includes(member.id)
+                  {(account.sharedMemberIds || []).length === 0 ? (
+                    <p className="text-xs text-slate-400">
+                      {t("settings.accounts.noHouseholdUsers")}
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {(account.sharedMemberIds || [])
+                        .map((memberId) =>
+                          members.find((member) => member.id === memberId)
                         )
+                        .filter(Boolean)
                         .map((member) => (
-                          <option key={member.id} value={member.id}>
+                          <span
+                            key={member.id}
+                            className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
+                          >
                             {getMemberLabel(member)}
-                          </option>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleRemoveSharedMember(account, member.id)
+                              }
+                              className="text-red-200 transition hover:text-red-100"
+                            >
+                              {t("settings.accounts.removeUser")}
+                            </button>
+                          </span>
                         ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => handleAddSharedMember(account)}
-                      className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
-                    >
-                      {t("settings.accounts.addHouseholdUser")}
-                    </button>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+                  {availableMembers.length === 0 ? (
+                    <p className="text-xs text-slate-500">
+                      {t("settings.accounts.householdUsersEmpty")}
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={memberSelections[account.id] || ""}
+                        onChange={(event) =>
+                          setMemberSelections((prev) => ({
+                            ...prev,
+                            [account.id]: event.target.value
+                          }))
+                        }
+                        className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
+                      >
+                        <option value="">
+                          {t("settings.accounts.householdUserPlaceholder")}
+                        </option>
+                        {availableMembers
+                          .filter(
+                            (member) =>
+                              !(account.sharedMemberIds || []).includes(
+                                member.id
+                              )
+                          )
+                          .map((member) => (
+                            <option key={member.id} value={member.id}>
+                              {getMemberLabel(member)}
+                            </option>
+                          ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => handleAddSharedMember(account)}
+                        className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                      >
+                        {t("settings.accounts.addHouseholdUser")}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </li>
           ))}
         </ul>
@@ -1222,6 +1276,7 @@ function HouseholdTab({ user, profile }) {
   const [inviteError, setInviteError] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteActionStatus, setInviteActionStatus] = useState("");
+  const [inviteHouseholdName, setInviteHouseholdName] = useState("");
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -1259,6 +1314,28 @@ function HouseholdTab({ user, profile }) {
     setInviteStatus("");
     setInviteError("");
   }, [inviteSearch]);
+
+  useEffect(() => {
+    const fetchInviteHousehold = async () => {
+      if (!profile?.householdInvite?.householdId) {
+        setInviteHouseholdName("");
+        return;
+      }
+      const householdRef = doc(
+        db,
+        "households",
+        profile.householdInvite.householdId
+      );
+      const householdSnap = await getDoc(householdRef);
+      if (householdSnap.exists()) {
+        const data = householdSnap.data();
+        setInviteHouseholdName(data.name || "");
+      } else {
+        setInviteHouseholdName("");
+      }
+    };
+    fetchInviteHousehold();
+  }, [profile?.householdInvite?.householdId]);
 
   const getMemberLabel = (member) => {
     if (!member) {
@@ -1302,7 +1379,7 @@ function HouseholdTab({ user, profile }) {
   };
 
   const handleSetHead = async (memberId) => {
-    if (!household) {
+    if (!household || household.headId !== user?.uid) {
       return;
     }
     await updateDoc(doc(db, "households", household.id), { headId: memberId });
@@ -1363,7 +1440,7 @@ function HouseholdTab({ user, profile }) {
     setInviteStatus("");
     const invitePayload = {
       householdId: household.id,
-      householdName: household.name || "",
+      householdName: household.name ? household.name.trim() : "",
       invitedById: user.uid,
       invitedByName: user.displayName || user.email || "",
       createdAt: serverTimestamp()
@@ -1449,6 +1526,7 @@ function HouseholdTab({ user, profile }) {
               <p className="mt-2 text-sm text-slate-200">
                 {t("settings.household.inviteReceived", {
                   householdName:
+                    inviteHouseholdName ||
                     profile.householdInvite.householdName ||
                     t("settings.household.name")
                 })}
@@ -1526,7 +1604,8 @@ function HouseholdTab({ user, profile }) {
                     ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    {household?.headId !== member.id ? (
+                    {household?.headId === user?.uid &&
+                    household?.headId !== member.id ? (
                       <button
                         type="button"
                         onClick={() => handleSetHead(member.id)}
