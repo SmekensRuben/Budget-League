@@ -23,6 +23,18 @@ const notificationDefaults = {
 
 const currencyOptions = ["EUR", "USD", "GBP"];
 
+const parseAmount = (value) => {
+  if (typeof value === "number") {
+    return value;
+  }
+  if (value === null || value === undefined || value === "") {
+    return 0;
+  }
+  const normalized = String(value).replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 const getAccountOwnerIds = (account) => {
   if (Array.isArray(account.ownerIds)) {
     return account.ownerIds;
@@ -60,6 +72,7 @@ export default function SettingsPage() {
       { id: "categories", label: t("settings.tabs.categories") },
       { id: "accounts", label: t("settings.tabs.accounts") },
       { id: "household", label: t("settings.tabs.household") },
+      { id: "projectedIncome", label: t("settings.tabs.projectedIncome") },
       { id: "data", label: t("settings.tabs.data") },
       { id: "rules", label: t("settings.tabs.rules") },
       { id: "paymentMethods", label: t("settings.tabs.paymentMethods") },
@@ -106,6 +119,9 @@ export default function SettingsPage() {
           ) : null}
           {activeTab === "household" ? (
             <HouseholdTab user={user} profile={profile} />
+          ) : null}
+          {activeTab === "projectedIncome" ? (
+            <ProjectedIncomeTab user={user} profile={profile} />
           ) : null}
           {activeTab === "paymentMethods" ? (
             <PaymentMethodsTab user={user} profile={profile} />
@@ -1962,6 +1978,159 @@ function HouseholdTab({ user, profile }) {
                   );
                 })}
               </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProjectedIncomeTab({ user, profile }) {
+  const { t } = useTranslation("app");
+  const [household, setHousehold] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [incomeDrafts, setIncomeDrafts] = useState({});
+  const [statusMessage, setStatusMessage] = useState("");
+
+  useEffect(() => {
+    if (!profile?.householdId) {
+      setHousehold(null);
+      setMembers([]);
+      return;
+    }
+    const householdRef = doc(db, "households", profile.householdId);
+    const unsubscribe = onSnapshot(householdRef, (snap) => {
+      setHousehold(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+    });
+    return () => unsubscribe();
+  }, [profile?.householdId]);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!household?.memberIds?.length) {
+        setMembers([]);
+        return;
+      }
+      const memberDocs = await Promise.all(
+        household.memberIds.map((memberId) =>
+          getDoc(doc(db, "users", memberId))
+        )
+      );
+      const data = memberDocs
+        .filter((docSnap) => docSnap.exists())
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+      setMembers(data);
+    };
+    fetchMembers();
+  }, [household?.memberIds]);
+
+  useEffect(() => {
+    if (!household?.memberIds?.length) {
+      setIncomeDrafts({});
+      return;
+    }
+    const projectedIncomeByMember = household.projectedIncomeByMember || {};
+    setIncomeDrafts(() =>
+      household.memberIds.reduce((acc, memberId) => {
+        acc[memberId] =
+          projectedIncomeByMember[memberId] !== undefined
+            ? projectedIncomeByMember[memberId]
+            : "";
+        return acc;
+      }, {})
+    );
+  }, [household?.memberIds, household?.projectedIncomeByMember]);
+
+  const getMemberLabel = (member) => {
+    if (!member) {
+      return "";
+    }
+    const fullName = [member.firstName, member.lastName].filter(Boolean).join(" ");
+    const displayName =
+      member.displayName && !member.displayName.includes("@")
+        ? member.displayName
+        : "";
+    return fullName || displayName || member.email || member.id || "";
+  };
+
+  const handleSave = async () => {
+    if (!user || !profile?.householdId) {
+      return;
+    }
+    const projectedIncomeByMember = Object.entries(incomeDrafts).reduce(
+      (acc, [memberId, value]) => {
+        acc[memberId] = parseAmount(value);
+        return acc;
+      },
+      {}
+    );
+    await updateDoc(doc(db, "households", profile.householdId), {
+      projectedIncomeByMember
+    });
+    setStatusMessage(t("settings.projectedIncome.saved"));
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">
+          {t("settings.projectedIncome.title")}
+        </h2>
+        <p className="text-sm text-slate-400">
+          {t("settings.projectedIncome.subtitle")}
+        </p>
+      </div>
+
+      {!profile?.householdId ? (
+        <p className="text-sm text-slate-400">
+          {t("settings.projectedIncome.noHousehold")}
+        </p>
+      ) : members.length === 0 ? (
+        <p className="text-sm text-slate-400">
+          {t("settings.projectedIncome.noMembers")}
+        </p>
+      ) : (
+        <div className="space-y-3">
+          {members.map((member) => (
+            <div
+              key={member.id}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-4"
+            >
+              <div>
+                <p className="text-sm font-semibold text-white">
+                  {getMemberLabel(member)}
+                </p>
+                <p className="text-xs text-slate-400">{member.email}</p>
+              </div>
+              <label className="flex flex-col gap-2 text-sm text-white">
+                {t("settings.projectedIncome.monthlyIncome")}
+                <input
+                  type="number"
+                  step="0.01"
+                  value={incomeDrafts[member.id] ?? ""}
+                  onChange={(event) =>
+                    setIncomeDrafts((prev) => ({
+                      ...prev,
+                      [member.id]: event.target.value
+                    }))
+                  }
+                  className="min-w-[160px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                  placeholder={t("settings.projectedIncome.placeholder")}
+                />
+              </label>
+            </div>
+          ))}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleSave}
+              className="rounded-xl bg-amber-500/90 px-5 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+            >
+              {t("settings.projectedIncome.save")}
+            </button>
+            {statusMessage ? (
+              <p className="text-sm text-amber-200">{statusMessage}</p>
             ) : null}
           </div>
         </div>

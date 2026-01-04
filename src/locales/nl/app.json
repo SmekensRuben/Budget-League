@@ -194,7 +194,15 @@
     "insights": {
       "title": "Inzichten",
       "subtitle": "Volg trends in je household.",
-      "placeholder": "Inzichtendashboards verschijnen hier."
+      "summaryTitle": "Maandinschatting",
+      "summarySubtitle": "Gebaseerd op geschatte inkomsten en geplande budgetten.",
+      "estimatedIncome": "Geschat inkomen",
+      "estimatedBudget": "Gepland budget",
+      "estimatedRemaining": "Geschat resterend",
+      "memberEstimates": "Geschat inkomen per lid",
+      "memberEmpty": "Nog geen householdleden beschikbaar.",
+      "projectedIncomeLabel": "Geschatte maandelijkse inkomsten",
+      "noHousehold": "Word lid van een household om inzichten te bekijken."
     }
   },
   "settings": {
@@ -205,6 +213,7 @@
       "categories": "Categorieën",
       "accounts": "Accounts",
       "household": "Household",
+      "projectedIncome": "Geschat inkomen",
       "data": "Data",
       "rules": "Regels",
       "paymentMethods": "Betaalmethodes",
@@ -316,6 +325,16 @@
       "inviteAccept": "Accepteren",
       "inviteDecline": "Weigeren",
       "inviteMissing": "Deze uitnodiging is niet meer beschikbaar."
+    },
+    "projectedIncome": {
+      "title": "Geschat inkomen",
+      "subtitle": "Schat het maandelijkse inkomen per householdlid.",
+      "monthlyIncome": "Geschat maandinkomen (€)",
+      "placeholder": "0,00",
+      "save": "Geschat inkomen opslaan",
+      "saved": "Geschat inkomen bijgewerkt.",
+      "noHousehold": "Word lid van een household om geschat inkomen toe te voegen.",
+      "noMembers": "Nog geen householdleden beschikbaar."
     },
     "paymentMethods": {
       "title": "Betaalmethodes",
