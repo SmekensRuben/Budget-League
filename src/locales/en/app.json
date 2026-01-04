@@ -171,12 +171,17 @@
       "heading": "Monthly category budgets",
       "description": "Set budgets per category and track spend as the month progresses.",
       "empty": "No expense categories available yet.",
+      "monthLabel": "Month",
       "monthlyBudget": "Monthly budget",
       "budgetPlaceholder": "0.00",
       "save": "Save budget",
       "saved": "Budget updated.",
       "spent": "{{spent}} spent of {{budget}}",
       "overBudget": "Over budget",
+      "tabs": {
+        "overview": "Overview",
+        "manage": "Manage budgets"
+      },
       "noHousehold": "Join or create a household to set budgets."
     },
     "insights": {

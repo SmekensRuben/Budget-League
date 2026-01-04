@@ -4,6 +4,22 @@ import AppLayout from "../shared/AppLayout";
 import { useAuthContext } from "../../contexts/AuthContext";
 import { collection, db, doc, onSnapshot, setDoc } from "../../firebaseConfig";
 
+const getCurrentMonthKey = () => {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const getMonthRange = (monthKey) => {
+  const [year, month] = monthKey.split("-").map((value) => Number(value));
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0);
+  const formatDate = (date) => date.toISOString().split("T")[0];
+  return {
+    startDate: formatDate(startDate),
+    endDate: formatDate(endDate)
+  };
+};
+
 const getCurrentMonthRange = () => {
   const today = new Date();
   const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -35,6 +51,8 @@ export default function BudgetsPage() {
   const [budgetDrafts, setBudgetDrafts] = useState({});
   const [savingCategoryId, setSavingCategoryId] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
+  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -105,9 +123,47 @@ export default function BudgetsPage() {
     }, {});
   }, [expenseCategories]);
 
+  const monthOptions = useMemo(() => {
+    const currentMonth = getCurrentMonthKey();
+    const months = new Set([currentMonth]);
+    transactions.forEach((transaction) => {
+      if (!transaction?.date) {
+        return;
+      }
+      const monthKey = String(transaction.date).slice(0, 7);
+      if (monthKey.length === 7) {
+        months.add(monthKey);
+      }
+    });
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
+
+  useEffect(() => {
+    if (!monthOptions.length) {
+      return;
+    }
+    if (!monthOptions.includes(selectedMonth)) {
+      setSelectedMonth(monthOptions[0]);
+    }
+  }, [monthOptions, selectedMonth]);
+
+  const monthLabel = useMemo(() => {
+    if (!selectedMonth) {
+      return "";
+    }
+    const [year, month] = selectedMonth.split("-").map((value) => Number(value));
+    const date = new Date(year, month - 1, 1);
+    return new Intl.DateTimeFormat(undefined, {
+      month: "long",
+      year: "numeric"
+    }).format(date);
+  }, [selectedMonth]);
+
   const monthlySpend = useMemo(() => {
     const totals = {};
-    const { startDate, endDate } = getCurrentMonthRange();
+    const { startDate, endDate } = selectedMonth
+      ? getMonthRange(selectedMonth)
+      : getCurrentMonthRange();
     transactions.forEach((transaction) => {
       if (transaction.type !== "expense") {
         return;
@@ -179,7 +235,7 @@ export default function BudgetsPage() {
       ) : (
         <div className="space-y-4">
           <section className="rounded-2xl border border-white/10 bg-slate-900/50 p-6 shadow-xl shadow-slate-950/40">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-white">
                   {t("pages.budgets.heading")}
@@ -188,75 +244,146 @@ export default function BudgetsPage() {
                   {t("pages.budgets.description")}
                 </p>
               </div>
-            </div>
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              {budgetItems.length === 0 ? (
-                <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-400">
-                  {t("pages.budgets.empty")}
-                </div>
-              ) : (
-                budgetItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="flex flex-col text-xs text-slate-400">
+                  {t("pages.budgets.monthLabel")}
+                  <select
+                    value={selectedMonth}
+                    onChange={(event) => setSelectedMonth(event.target.value)}
+                    className="mt-2 min-w-[160px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white"
                   >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-white">{item.name}</p>
-                        <p className="text-xs text-slate-400">
-                          {t("pages.budgets.spent", {
-                            spent: formatCurrency(item.spent),
-                            budget: formatCurrency(item.budget)
-                          })}
-                        </p>
-                      </div>
-                      {item.isOverBudget ? (
-                        <span className="rounded-full bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-200">
-                          {t("pages.budgets.overBudget")}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-4 h-3 w-full rounded-full bg-slate-800">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          item.isOverBudget ? "bg-rose-400" : "bg-emerald-400"
-                        }`}
-                        style={{ width: `${item.ratio * 100}%` }}
-                      />
-                    </div>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <label className="flex flex-col gap-2 text-sm">
-                        {t("pages.budgets.monthlyBudget")}
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={budgetDrafts[item.id]}
-                          onChange={(event) =>
-                            setBudgetDrafts((prev) => ({
-                              ...prev,
-                              [item.id]: event.target.value
-                            }))
-                          }
-                          className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
-                          placeholder={t("pages.budgets.budgetPlaceholder")}
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => handleBudgetSave(item.id)}
-                        disabled={savingCategoryId === item.id}
-                        className="mt-6 rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
-                      >
-                        {t("pages.budgets.save")}
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
+                    {monthOptions.map((monthKey) => (
+                      <option key={monthKey} value={monthKey}>
+                        {new Intl.DateTimeFormat(undefined, {
+                          month: "long",
+                          year: "numeric"
+                        }).format(new Date(`${monthKey}-01`))}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <div className="flex rounded-full border border-white/10 bg-slate-950/60 p-1 text-xs text-slate-200">
+                  {["overview", "manage"].map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveTab(tab)}
+                      className={`rounded-full px-3 py-1 font-semibold transition ${
+                        activeTab === tab
+                          ? "bg-amber-500/90 text-slate-950"
+                          : "text-slate-300 hover:text-white"
+                      }`}
+                    >
+                      {t(`pages.budgets.tabs.${tab}`)}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-            {statusMessage ? (
-              <p className="mt-4 text-sm text-amber-200">{statusMessage}</p>
-            ) : null}
+            <div className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              {monthLabel}
+            </div>
+            {activeTab === "overview" ? (
+              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {budgetItems.length === 0 ? (
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-400">
+                    {t("pages.budgets.empty")}
+                  </div>
+                ) : (
+                  budgetItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {item.name}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {t("pages.budgets.spent", {
+                              spent: formatCurrency(item.spent),
+                              budget: formatCurrency(item.budget)
+                            })}
+                          </p>
+                        </div>
+                        {item.isOverBudget ? (
+                          <span className="rounded-full bg-rose-500/20 px-3 py-1 text-xs font-semibold text-rose-200">
+                            {t("pages.budgets.overBudget")}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-4 h-3 w-full rounded-full bg-slate-800">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            item.isOverBudget ? "bg-rose-400" : "bg-emerald-400"
+                          }`}
+                          style={{ width: `${item.ratio * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="mt-6 space-y-4">
+                {budgetItems.length === 0 ? (
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-400">
+                    {t("pages.budgets.empty")}
+                  </div>
+                ) : (
+                  budgetItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {item.name}
+                          </p>
+                          <p className="text-xs text-slate-400">
+                            {t("pages.budgets.spent", {
+                              spent: formatCurrency(item.spent),
+                              budget: formatCurrency(item.budget)
+                            })}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <label className="flex flex-col gap-2 text-sm text-white">
+                            {t("pages.budgets.monthlyBudget")}
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={budgetDrafts[item.id]}
+                              onChange={(event) =>
+                                setBudgetDrafts((prev) => ({
+                                  ...prev,
+                                  [item.id]: event.target.value
+                                }))
+                              }
+                              className="min-w-[140px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                              placeholder={t("pages.budgets.budgetPlaceholder")}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => handleBudgetSave(item.id)}
+                            disabled={savingCategoryId === item.id}
+                            className="mt-6 rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
+                          >
+                            {t("pages.budgets.save")}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {statusMessage ? (
+                  <p className="text-sm text-amber-200">{statusMessage}</p>
+                ) : null}
+              </div>
+            )}
           </section>
         </div>
       )}

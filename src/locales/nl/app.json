@@ -171,12 +171,17 @@
       "heading": "Maandbudgetten per categorie",
       "description": "Koppel budgetten per categorie en volg je uitgaven.",
       "empty": "Nog geen expense-categorieën beschikbaar.",
+      "monthLabel": "Maand",
       "monthlyBudget": "Maandbudget",
       "budgetPlaceholder": "0,00",
       "save": "Budget opslaan",
       "saved": "Budget bijgewerkt.",
       "spent": "{{spent}} uitgegeven van {{budget}}",
       "overBudget": "Budget overschreden",
+      "tabs": {
+        "overview": "Overzicht",
+        "manage": "Budgetten beheren"
+      },
       "noHousehold": "Word lid van een household om budgetten in te stellen."
     },
     "insights": {
