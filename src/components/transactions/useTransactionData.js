@@ -77,11 +77,16 @@ export default function useTransactionData({ user, profile }) {
   }, [profile?.householdId, user]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
       setMerchants([]);
       return;
     }
-    const merchantsRef = collection(db, "users", user.uid, "merchants");
+    const merchantsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "merchants"
+    );
 
     const unsubscribeMerchants = onSnapshot(merchantsRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
@@ -94,7 +99,7 @@ export default function useTransactionData({ user, profile }) {
     return () => {
       unsubscribeMerchants();
     };
-  }, [user]);
+  }, [profile?.householdId, user]);
 
   useEffect(() => {
     if (!user || !profile?.householdId) {
