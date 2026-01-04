@@ -110,7 +110,9 @@ export default function SettingsPage() {
           {activeTab === "paymentMethods" ? (
             <PaymentMethodsTab user={user} profile={profile} />
           ) : null}
-          {activeTab === "merchants" ? <MerchantsTab user={user} /> : null}
+          {activeTab === "merchants" ? (
+            <MerchantsTab user={user} profile={profile} />
+          ) : null}
           {activeTab === "data" ? (
             <PlaceholderTab title={t("settings.tabs.data")} />
           ) : null}
@@ -2154,16 +2156,21 @@ function PaymentMethodsTab({ user, profile }) {
   );
 }
 
-function MerchantsTab({ user }) {
+function MerchantsTab({ user, profile }) {
   const { t } = useTranslation("app");
   const [merchants, setMerchants] = useState([]);
   const [name, setName] = useState("");
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
       return;
     }
-    const merchantsRef = collection(db, "users", user.uid, "merchants");
+    const merchantsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "merchants"
+    );
     const unsubscribe = onSnapshot(merchantsRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -2172,25 +2179,30 @@ function MerchantsTab({ user }) {
       setMerchants(data);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [profile?.householdId, user]);
 
   const handleAdd = async (event) => {
     event.preventDefault();
-    if (!user || !name.trim()) {
+    if (!user || !profile?.householdId || !name.trim()) {
       return;
     }
-    await addDoc(collection(db, "users", user.uid, "merchants"), {
+    await addDoc(
+      collection(db, "households", profile.householdId, "merchants"),
+      {
       name: name.trim(),
       createdAt: serverTimestamp()
-    });
+      }
+    );
     setName("");
   };
 
   const handleRemove = async (merchantId) => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
       return;
     }
-    await deleteDoc(doc(db, "users", user.uid, "merchants", merchantId));
+    await deleteDoc(
+      doc(db, "households", profile.householdId, "merchants", merchantId)
+    );
   };
 
   return (
