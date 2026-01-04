@@ -202,6 +202,10 @@
     "categories": {
       "title": "Categorieën",
       "subtitle": "Voeg income- en expense-categorieën met subcategorieën toe.",
+      "sections": {
+        "expense": "Uitgavencategorieën",
+        "income": "Inkomstencategorieën"
+      },
       "namePlaceholder": "Categorienaam",
       "parentPlaceholder": "Geen parent (bovenliggend)",
       "types": {

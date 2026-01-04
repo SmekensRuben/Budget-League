@@ -202,6 +202,10 @@
     "categories": {
       "title": "Categories",
       "subtitle": "Add income and expense categories with subcategories.",
+      "sections": {
+        "expense": "Expense categories",
+        "income": "Income categories"
+      },
       "namePlaceholder": "Category name",
       "parentPlaceholder": "No parent (top-level)",
       "types": {
