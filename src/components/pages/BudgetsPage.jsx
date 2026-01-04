@@ -53,6 +53,7 @@ export default function BudgetsPage() {
   const [statusMessage, setStatusMessage] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
+  const [sortOrder, setSortOrder] = useState("percent");
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -100,10 +101,11 @@ export default function BudgetsPage() {
     setBudgetDrafts((prev) => {
       const next = { ...prev };
       categories.forEach((category) => {
-        if (!category.parentId && category.type === "expense") {
-          if (next[category.id] === undefined) {
-            next[category.id] = category.monthlyBudget ?? "";
-          }
+        if (category.type !== "expense") {
+          return;
+        }
+        if (next[category.id] === undefined) {
+          next[category.id] = category.monthlyBudget ?? "";
         }
       });
       return next;
@@ -125,9 +127,15 @@ export default function BudgetsPage() {
       if (!map[category.parentId]) {
         map[category.parentId] = [];
       }
-      map[category.parentId].push(category.name);
+      map[category.parentId].push({
+        id: category.id,
+        name: category.name,
+        monthlyBudget: category.monthlyBudget ?? ""
+      });
     });
-    Object.values(map).forEach((list) => list.sort((a, b) => a.localeCompare(b)));
+    Object.values(map).forEach((list) =>
+      list.sort((a, b) => a.name.localeCompare(b.name))
+    );
     return map;
   }, [categories]);
 
@@ -137,6 +145,13 @@ export default function BudgetsPage() {
       return acc;
     }, {});
   }, [expenseCategories]);
+
+  const categoryById = useMemo(() => {
+    return categories.reduce((acc, category) => {
+      acc[category.id] = category;
+      return acc;
+    }, {});
+  }, [categories]);
 
   const monthOptions = useMemo(() => {
     const currentMonth = getCurrentMonthKey();
@@ -193,9 +208,24 @@ export default function BudgetsPage() {
       }
       const amount = parseAmount(transaction.amount);
       totals[categoryId] = (totals[categoryId] || 0) + amount;
+      const parentId = categoryById[categoryId]?.parentId;
+      if (parentId) {
+        totals[parentId] = (totals[parentId] || 0) + amount;
+      }
     });
     return totals;
-  }, [transactions, categoryNameLookup]);
+  }, [transactions, categoryNameLookup, categoryById, selectedMonth]);
+
+  const subcategoryBudgetTotals = useMemo(() => {
+    return Object.entries(subcategoriesByParent).reduce((acc, [parentId, list]) => {
+      const total = list.reduce(
+        (sum, subcategory) => sum + parseAmount(subcategory.monthlyBudget),
+        0
+      );
+      acc[parentId] = total;
+      return acc;
+    }, {});
+  }, [subcategoriesByParent]);
 
   const formatCurrency = (value) => {
     const amount = Number(value) || 0;
@@ -207,7 +237,10 @@ export default function BudgetsPage() {
 
   const budgetItems = useMemo(() => {
     const items = expenseCategories.map((category) => {
-      const budget = parseAmount(category.monthlyBudget);
+      const budgetBySubcategory = Boolean(category.budgetBySubcategory);
+      const budget = budgetBySubcategory
+        ? subcategoryBudgetTotals[category.id] || 0
+        : parseAmount(category.monthlyBudget);
       const spent = monthlySpend[category.id] || 0;
       const fillRatio = budget > 0 ? spent / budget : 0;
       const ratio = budget > 0 ? Math.min(fillRatio, 1) : 0;
@@ -218,17 +251,25 @@ export default function BudgetsPage() {
         spent,
         fillRatio,
         ratio,
-        isOverBudget: budget > 0 && spent > budget
+        isOverBudget: budget > 0 && spent > budget,
+        budgetBySubcategory
       };
     });
     return [...items].sort((a, b) => {
-      const ratioDiff = b.fillRatio - a.fillRatio;
-      if (ratioDiff !== 0) {
-        return ratioDiff;
+      if (sortOrder === "budget") {
+        const budgetDiff = b.budget - a.budget;
+        if (budgetDiff !== 0) {
+          return budgetDiff;
+        }
+      } else {
+        const ratioDiff = b.fillRatio - a.fillRatio;
+        if (ratioDiff !== 0) {
+          return ratioDiff;
+        }
       }
       return a.name.localeCompare(b.name);
     });
-  }, [expenseCategories, monthlySpend]);
+  }, [expenseCategories, monthlySpend, sortOrder, subcategoryBudgetTotals]);
 
   const totalBudget = useMemo(() => {
     return budgetItems.reduce((total, item) => total + item.budget, 0);
@@ -256,6 +297,19 @@ export default function BudgetsPage() {
       { merge: true }
     );
     setSavingCategoryId("");
+    setStatusMessage(t("pages.budgets.saved"));
+  };
+
+  const handleBudgetAllocationChange = async (categoryId, useSubcategories) => {
+    if (!profile?.householdId) {
+      return;
+    }
+    setStatusMessage("");
+    await setDoc(
+      doc(db, "households", profile.householdId, "categories", categoryId),
+      { budgetBySubcategory: useSubcategories },
+      { merge: true }
+    );
     setStatusMessage(t("pages.budgets.saved"));
   };
 
@@ -296,6 +350,21 @@ export default function BudgetsPage() {
                         }).format(new Date(`${monthKey}-01`))}
                       </option>
                     ))}
+                  </select>
+                </label>
+                <label className="flex flex-col text-xs text-slate-400">
+                  {t("pages.budgets.sortLabel")}
+                  <select
+                    value={sortOrder}
+                    onChange={(event) => setSortOrder(event.target.value)}
+                    className="mt-2 min-w-[160px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white"
+                  >
+                    <option value="budget">
+                      {t("pages.budgets.sortOptions.budget")}
+                    </option>
+                    <option value="percent">
+                      {t("pages.budgets.sortOptions.percent")}
+                    </option>
                   </select>
                 </label>
                 <div className="flex rounded-full border border-white/10 bg-slate-950/60 p-1 text-xs text-slate-200">
@@ -412,44 +481,104 @@ export default function BudgetsPage() {
                           </p>
                           {subcategoriesByParent[item.id]?.length ? (
                             <div className="mt-2 flex flex-wrap gap-2">
-                              {subcategoriesByParent[item.id].map((name) => (
+                              {subcategoriesByParent[item.id].map((subcategory) => (
                                 <span
-                                  key={name}
+                                  key={subcategory.id}
                                   className="rounded-full bg-slate-800/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200"
                                 >
-                                  {name}
+                                  {subcategory.name}
                                 </span>
                               ))}
                             </div>
                           ) : null}
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
-                          <label className="flex flex-col gap-2 text-sm text-white">
-                            {t("pages.budgets.monthlyBudget")}
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={budgetDrafts[item.id]}
-                              onChange={(event) =>
-                                setBudgetDrafts((prev) => ({
-                                  ...prev,
-                                  [item.id]: event.target.value
-                                }))
-                              }
-                              className="min-w-[140px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
-                              placeholder={t("pages.budgets.budgetPlaceholder")}
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => handleBudgetSave(item.id)}
-                            disabled={savingCategoryId === item.id}
-                            className="mt-6 rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
-                          >
-                            {t("pages.budgets.save")}
-                          </button>
+                          {subcategoriesByParent[item.id]?.length ? (
+                            <label className="flex items-center gap-2 text-xs text-slate-300">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 rounded border-white/20 bg-slate-950/60 text-amber-500"
+                                checked={item.budgetBySubcategory}
+                                onChange={(event) =>
+                                  handleBudgetAllocationChange(
+                                    item.id,
+                                    event.target.checked
+                                  )
+                                }
+                              />
+                              {t("pages.budgets.budgetBySubcategory")}
+                            </label>
+                          ) : null}
+                          {!item.budgetBySubcategory ? (
+                            <>
+                              <label className="flex flex-col gap-2 text-sm text-white">
+                                {t("pages.budgets.monthlyBudget")}
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={budgetDrafts[item.id]}
+                                  onChange={(event) =>
+                                    setBudgetDrafts((prev) => ({
+                                      ...prev,
+                                      [item.id]: event.target.value
+                                    }))
+                                  }
+                                  className="min-w-[140px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                                  placeholder={t("pages.budgets.budgetPlaceholder")}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleBudgetSave(item.id)}
+                                disabled={savingCategoryId === item.id}
+                                className="mt-6 rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
+                              >
+                                {t("pages.budgets.save")}
+                              </button>
+                            </>
+                          ) : null}
                         </div>
                       </div>
+                      {item.budgetBySubcategory &&
+                      subcategoriesByParent[item.id]?.length ? (
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                          {subcategoriesByParent[item.id].map((subcategory) => (
+                            <div
+                              key={subcategory.id}
+                              className="rounded-xl border border-white/10 bg-slate-950/60 p-3"
+                            >
+                              <div className="flex flex-wrap items-end justify-between gap-3">
+                                <label className="flex flex-col gap-2 text-sm text-white">
+                                  <span className="text-xs text-slate-300">
+                                    {subcategory.name}
+                                  </span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    value={budgetDrafts[subcategory.id]}
+                                    onChange={(event) =>
+                                      setBudgetDrafts((prev) => ({
+                                        ...prev,
+                                        [subcategory.id]: event.target.value
+                                      }))
+                                    }
+                                    className="min-w-[140px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                                    placeholder={t("pages.budgets.budgetPlaceholder")}
+                                  />
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleBudgetSave(subcategory.id)}
+                                  disabled={savingCategoryId === subcategory.id}
+                                  className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
+                                >
+                                  {t("pages.budgets.save")}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   ))
                 )}

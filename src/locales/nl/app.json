@@ -172,7 +172,13 @@
       "description": "Koppel budgetten per categorie en volg je uitgaven.",
       "empty": "Nog geen expense-categorieën beschikbaar.",
       "monthLabel": "Maand",
+      "sortLabel": "Sorteren op",
+      "sortOptions": {
+        "budget": "Budget",
+        "percent": "% besteed"
+      },
       "monthlyBudget": "Maandbudget (€)",
+      "budgetBySubcategory": "Budgetten koppelen aan subcategorieën",
       "totalBudget": "Totaalbudget (€)",
       "budgetPlaceholder": "0,00",
       "save": "Budget opslaan",
