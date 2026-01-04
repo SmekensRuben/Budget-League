@@ -49,9 +49,10 @@
         }
       },
       "accounts": {
-        "title": "Account balance progress",
-        "subtitle": "Track balance changes per account.",
-        "chartLabel": "Account balance chart",
+        "title": "Net worth progress",
+        "subtitle": "Track net worth across selected accounts.",
+        "chartLabel": "Net worth chart",
+        "netWorthLabel": "Net worth",
         "total": "{{count}} accounts",
         "empty": "No account balances available for the selected range.",
         "noAccounts": "No accounts available.",

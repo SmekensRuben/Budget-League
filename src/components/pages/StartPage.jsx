@@ -26,6 +26,16 @@ const getAccountVisibility = (account, userId) => {
   return ownerIds.includes(userId) || visibleToMemberIds.includes(userId);
 };
 
+const getAccountOwnerIds = (account) => {
+  if (Array.isArray(account.ownerIds)) {
+    return account.ownerIds;
+  }
+  if (account.ownerId) {
+    return [account.ownerId];
+  }
+  return [];
+};
+
 export default function StartPage() {
   const { t } = useTranslation("app");
   const { user, profile } = useAuthContext();
@@ -323,14 +333,54 @@ export default function StartPage() {
         running += deltas[date] || 0;
         return { date, balance: running };
       });
+      const ownerIds = getAccountOwnerIds(account);
+      const hasOwnerFilter = Boolean(filters.paidByUserId);
+      const ownerShare = hasOwnerFilter
+        ? ownerIds.includes(filters.paidByUserId)
+          ? 1 / (ownerIds.length || 1)
+          : 0
+        : 1;
       return {
         account,
-        points
+        ownerShare,
+        points,
+        pointsByDate: points.reduce((acc, point) => {
+          acc[point.date] = point.balance;
+          return acc;
+        }, {})
       };
     });
 
-    return { dates, series };
-  }, [accountFilters.accountIds, accountTransactions, filters, selectedAccounts]);
+    const netWorthPoints = dates.map((date) => {
+      const total = series.reduce((sum, accountSeries) => {
+        const balance = accountSeries.pointsByDate[date];
+        if (balance === undefined) {
+          return sum;
+        }
+        return sum + balance * accountSeries.ownerShare;
+      }, 0);
+      return { date, balance: total };
+    });
+
+    return {
+      dates,
+      series: [
+        {
+          account: {
+            id: "net-worth",
+            name: t("pages.start.accounts.netWorthLabel")
+          },
+          points: netWorthPoints
+        }
+      ]
+    };
+  }, [
+    accountFilters.accountIds,
+    accountTransactions,
+    filters,
+    selectedAccounts,
+    t
+  ]);
 
   const accountBalanceRange = useMemo(() => {
     let min = 0;

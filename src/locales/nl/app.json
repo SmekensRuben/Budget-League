@@ -49,9 +49,10 @@
         }
       },
       "accounts": {
-        "title": "Voortgang accountbalansen",
-        "subtitle": "Volg de balanswijzigingen per account.",
-        "chartLabel": "Accountbalansgrafiek",
+        "title": "Voortgang nettovermogen",
+        "subtitle": "Volg het nettovermogen over geselecteerde accounts.",
+        "chartLabel": "Nettovermogensgrafiek",
+        "netWorthLabel": "Nettovermogen",
         "total": "{{count}} accounts",
         "empty": "Geen accountbalansen beschikbaar voor deze periode.",
         "noAccounts": "Geen accounts beschikbaar.",
