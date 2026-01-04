@@ -28,15 +28,23 @@ export default function useTransactionData({ user, profile }) {
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
       setCategories([]);
       setPaymentMethods([]);
-      setMerchants([]);
       return;
     }
-    const categoriesRef = collection(db, "users", user.uid, "categories");
-    const methodsRef = collection(db, "users", user.uid, "paymentMethods");
-    const merchantsRef = collection(db, "users", user.uid, "merchants");
+    const categoriesRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "categories"
+    );
+    const methodsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "paymentMethods"
+    );
 
     const unsubscribeCategories = onSnapshot(categoriesRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
@@ -51,8 +59,29 @@ export default function useTransactionData({ user, profile }) {
         id: docSnap.id,
         ...docSnap.data()
       }));
+      data.sort((a, b) => {
+        const orderA = Number(a.sortOrder) || 0;
+        const orderB = Number(b.sortOrder) || 0;
+        if (orderA !== orderB) {
+          return orderA - orderB;
+        }
+        return String(a.name || "").localeCompare(String(b.name || ""));
+      });
       setPaymentMethods(data);
     });
+
+    return () => {
+      unsubscribeCategories();
+      unsubscribeMethods();
+    };
+  }, [profile?.householdId, user]);
+
+  useEffect(() => {
+    if (!user) {
+      setMerchants([]);
+      return;
+    }
+    const merchantsRef = collection(db, "users", user.uid, "merchants");
 
     const unsubscribeMerchants = onSnapshot(merchantsRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
@@ -63,8 +92,6 @@ export default function useTransactionData({ user, profile }) {
     });
 
     return () => {
-      unsubscribeCategories();
-      unsubscribeMethods();
       unsubscribeMerchants();
     };
   }, [user]);

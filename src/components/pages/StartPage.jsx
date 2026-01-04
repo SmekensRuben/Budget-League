@@ -146,11 +146,16 @@ export default function StartPage() {
   }, [profile?.householdId, user]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
       setCategories([]);
       return;
     }
-    const categoriesRef = collection(db, "users", user.uid, "categories");
+    const categoriesRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "categories"
+    );
     const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -159,7 +164,7 @@ export default function StartPage() {
       setCategories(data);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [profile?.householdId, user]);
 
   useEffect(() => {
     if (accounts.length > 0 && accountFilters.accountIds.length === 0) {

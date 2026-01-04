@@ -11,6 +11,7 @@ export const buildDefaultFormState = ({ profile, user }) => ({
   spendType: "",
   incomeStability: "",
   paymentMethod: "",
+  paymentMethodId: "",
   accountId: "",
   paidByUserId: user?.uid || "",
   type: "expense"

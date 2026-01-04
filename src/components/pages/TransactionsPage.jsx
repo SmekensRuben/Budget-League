@@ -225,6 +225,9 @@ export default function TransactionsPage() {
           item.parentId === matchedCategory?.id &&
           item.name === transaction.subcategory
       );
+    const matchedPaymentMethod =
+      paymentMethods.find((item) => item.id === transaction.paymentMethodId) ||
+      paymentMethods.find((item) => item.name === transaction.paymentMethod);
     setFormState({
       ...buildDefaultFormState({ profile, user }),
       ...transaction,
@@ -245,11 +248,8 @@ export default function TransactionsPage() {
             matchedSubcategory?.incomeStability ||
             "regular"
           : "",
-      paymentMethod: paymentMethods.some(
-        (item) => item.name === transaction.paymentMethod
-      )
-        ? transaction.paymentMethod
-        : "",
+      paymentMethod: matchedPaymentMethod?.name || transaction.paymentMethod || "",
+      paymentMethodId: matchedPaymentMethod?.id || transaction.paymentMethodId || "",
       accountId: accounts.some((item) => item.id === transaction.accountId)
         ? transaction.accountId
         : ""
@@ -306,6 +306,7 @@ export default function TransactionsPage() {
                 statusMessage={statusMessage}
                 categories={categories}
                 paymentMethods={paymentMethods}
+                paymentMethodAccountMap={profile?.paymentMethodAccountMap || {}}
                 accounts={accounts}
                 merchants={merchants}
                 paidByOptions={paidByOptions}
