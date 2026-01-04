@@ -109,6 +109,7 @@ export default function AddTransactionPage() {
         statusMessage={statusMessage}
         categories={categories}
         paymentMethods={paymentMethods}
+        paymentMethodAccountMap={profile?.paymentMethodAccountMap || {}}
         accounts={accounts}
         merchants={merchants}
         paidByOptions={paidByOptions}

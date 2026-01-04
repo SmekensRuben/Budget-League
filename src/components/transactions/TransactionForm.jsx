@@ -11,6 +11,7 @@ export default function TransactionForm({
   statusMessage,
   categories,
   paymentMethods,
+  paymentMethodAccountMap,
   accounts,
   merchants,
   paidByOptions,
@@ -41,12 +42,17 @@ export default function TransactionForm({
     if (onFieldEdit) {
       onFieldEdit();
     }
-    if (name === "paymentMethod") {
-      const selectedMethod = paymentMethods.find((method) => method.name === value);
+    if (name === "paymentMethodId") {
+      const selectedMethod = paymentMethods.find((method) => method.id === value);
+      const preferredAccountId =
+        selectedMethod?.id && paymentMethodAccountMap
+          ? paymentMethodAccountMap[selectedMethod.id]
+          : "";
       setFormState((prev) => ({
         ...prev,
-        paymentMethod: value,
-        accountId: selectedMethod?.accountId || ""
+        paymentMethod: selectedMethod?.name || "",
+        paymentMethodId: value,
+        accountId: preferredAccountId || ""
       }));
       return;
     }
@@ -284,15 +290,20 @@ export default function TransactionForm({
           <label className="flex flex-col gap-2 text-sm">
             {t("pages.transactions.fields.paymentMethod")}
             <select
-              name="paymentMethod"
-              value={formState.paymentMethod}
+              name="paymentMethodId"
+              value={
+                formState.paymentMethodId ||
+                paymentMethods.find((method) => method.name === formState.paymentMethod)
+                  ?.id ||
+                ""
+              }
               onChange={handleChange}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
               disabled={disabled}
             >
               <option value="">{t("pages.transactions.placeholders.paymentMethod")}</option>
               {paymentMethods.map((method) => (
-                <option key={method.id} value={method.name}>
+                <option key={method.id} value={method.id}>
                   {method.name}
                 </option>
               ))}

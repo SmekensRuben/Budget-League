@@ -99,7 +99,7 @@ export default function SettingsPage() {
             <GeneralTab user={user} profile={profile} />
           ) : null}
           {activeTab === "categories" ? (
-            <CategoriesTab user={user} />
+            <CategoriesTab user={user} profile={profile} />
           ) : null}
           {activeTab === "accounts" ? (
             <AccountsTab user={user} profile={profile} />
@@ -262,7 +262,7 @@ function GeneralTab({ user, profile }) {
   );
 }
 
-function CategoriesTab({ user }) {
+function CategoriesTab({ user, profile }) {
   const { t } = useTranslation("app");
   const [categories, setCategories] = useState([]);
   const [formState, setFormState] = useState({
@@ -282,10 +282,16 @@ function CategoriesTab({ user }) {
   });
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
+      setCategories([]);
       return;
     }
-    const categoriesRef = collection(db, "users", user.uid, "categories");
+    const categoriesRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "categories"
+    );
     const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -296,16 +302,18 @@ function CategoriesTab({ user }) {
     return () => {
       unsubscribe();
     };
-  }, [user]);
+  }, [profile?.householdId, user]);
 
   const topLevelCategories = categories.filter((category) => !category.parentId);
 
   const handleAdd = async (event) => {
     event.preventDefault();
-    if (!user || !formState.name.trim()) {
+    if (!user || !profile?.householdId || !formState.name.trim()) {
       return;
     }
-    await addDoc(collection(db, "users", user.uid, "categories"), {
+    await addDoc(
+      collection(db, "households", profile.householdId, "categories"),
+      {
       name: formState.name.trim(),
       type: formState.type,
       parentId: formState.parentId || null,
@@ -318,7 +326,8 @@ function CategoriesTab({ user }) {
           ? formState.incomeStability
           : null,
       createdAt: serverTimestamp()
-    });
+      }
+    );
     setFormState({
       name: "",
       type: formState.type,
@@ -352,10 +361,21 @@ function CategoriesTab({ user }) {
 
   const handleEditSave = async (event) => {
     event.preventDefault();
-    if (!user || !editingCategoryId || !editFormState.name.trim()) {
+    if (
+      !user ||
+      !profile?.householdId ||
+      !editingCategoryId ||
+      !editFormState.name.trim()
+    ) {
       return;
     }
-    const categoryRef = doc(db, "users", user.uid, "categories", editingCategoryId);
+    const categoryRef = doc(
+      db,
+      "households",
+      profile.householdId,
+      "categories",
+      editingCategoryId
+    );
     await updateDoc(categoryRef, {
       name: editFormState.name.trim(),
       type: editFormState.type,
@@ -373,14 +393,22 @@ function CategoriesTab({ user }) {
   };
 
   const handleDelete = async (category) => {
-    if (!user || !category?.id) {
+    if (!user || !profile?.householdId || !category?.id) {
       return;
     }
-    const categoryRef = doc(db, "users", user.uid, "categories", category.id);
+    const categoryRef = doc(
+      db,
+      "households",
+      profile.householdId,
+      "categories",
+      category.id
+    );
     const subcategories = categories.filter((item) => item.parentId === category.id);
     await Promise.all(
       subcategories.map((sub) =>
-        deleteDoc(doc(db, "users", user.uid, "categories", sub.id))
+        deleteDoc(
+          doc(db, "households", profile.householdId, "categories", sub.id)
+        )
       )
     );
     await deleteDoc(categoryRef);
@@ -1095,8 +1123,17 @@ function AccountsTab({ user, profile }) {
     );
   };
 
-  const getMemberLabel = (member) =>
-    member.displayName || member.email || member.id;
+  const getMemberLabel = (member) => {
+    if (!member) {
+      return "";
+    }
+    const fullName = [member.firstName, member.lastName].filter(Boolean).join(" ");
+    const displayName =
+      member.displayName && !member.displayName.includes("@")
+        ? member.displayName
+        : "";
+    return fullName || displayName || member.id;
+  };
   const resolveMember = (memberId) =>
     members.find((member) => member.id === memberId) || { id: memberId };
 
@@ -1861,13 +1898,19 @@ function PaymentMethodsTab({ user, profile }) {
   const [methods, setMethods] = useState([]);
   const [accounts, setAccounts] = useState([]);
   const [name, setName] = useState("");
-  const [accountId, setAccountId] = useState("");
+  const [preferredAccounts, setPreferredAccounts] = useState({});
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
+      setMethods([]);
       return;
     }
-    const methodsRef = collection(db, "users", user.uid, "paymentMethods");
+    const methodsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "paymentMethods"
+    );
     const unsubscribe = onSnapshot(methodsRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -1876,7 +1919,11 @@ function PaymentMethodsTab({ user, profile }) {
       setMethods(data);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [profile?.householdId, user]);
+
+  useEffect(() => {
+    setPreferredAccounts(profile?.paymentMethodAccountMap || {});
+  }, [profile?.paymentMethodAccountMap]);
 
   useEffect(() => {
     if (!user || !profile?.householdId) {
@@ -1903,16 +1950,24 @@ function PaymentMethodsTab({ user, profile }) {
 
   const handleAdd = async (event) => {
     event.preventDefault();
-    if (!user || !name.trim()) {
+    if (!user || !profile?.householdId || !name.trim()) {
       return;
     }
-    await addDoc(collection(db, "users", user.uid, "paymentMethods"), {
-      name: name.trim(),
-      accountId: accountId || null,
-      createdAt: serverTimestamp()
-    });
+    const nextSortOrder =
+      methods.reduce(
+        (max, method) => Math.max(max, Number(method.sortOrder) || 0),
+        0
+      ) + 1;
+    await addDoc(
+      collection(db, "households", profile.householdId, "paymentMethods"),
+      {
+        name: name.trim(),
+        enabled: true,
+        sortOrder: nextSortOrder,
+        createdAt: serverTimestamp()
+      }
+    );
     setName("");
-    setAccountId("");
   };
 
   const accountLookup = useMemo(() => {
@@ -1922,12 +1977,28 @@ function PaymentMethodsTab({ user, profile }) {
     }, {});
   }, [accounts]);
 
+  const sortedMethods = useMemo(() => {
+    return [...methods].sort((a, b) => {
+      const orderA = Number(a.sortOrder) || 0;
+      const orderB = Number(b.sortOrder) || 0;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+      return String(a.name || "").localeCompare(String(b.name || ""));
+    });
+  }, [methods]);
+
   const handleUpdateAccount = async (methodId, nextAccountId) => {
     if (!user) {
       return;
     }
-    await updateDoc(doc(db, "users", user.uid, "paymentMethods", methodId), {
-      accountId: nextAccountId || null
+    const nextMap = {
+      ...preferredAccounts,
+      [methodId]: nextAccountId || null
+    };
+    setPreferredAccounts(nextMap);
+    await updateDoc(doc(db, "users", user.uid), {
+      paymentMethodAccountMap: nextMap
     });
   };
 
@@ -1942,25 +2013,13 @@ function PaymentMethodsTab({ user, profile }) {
         </p>
       </div>
 
-      <form className="grid gap-3 md:grid-cols-[2fr_1fr_auto]" onSubmit={handleAdd}>
+      <form className="grid gap-3 md:grid-cols-[2fr_auto]" onSubmit={handleAdd}>
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
           className="flex-1 rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
           placeholder={t("settings.paymentMethods.placeholder")}
         />
-        <select
-          value={accountId}
-          onChange={(event) => setAccountId(event.target.value)}
-          className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-        >
-          <option value="">{t("settings.paymentMethods.accountPlaceholder")}</option>
-          {accounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}
-            </option>
-          ))}
-        </select>
         <button
           type="submit"
           className="rounded-xl bg-amber-500/90 px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
@@ -1975,7 +2034,7 @@ function PaymentMethodsTab({ user, profile }) {
         </p>
       ) : (
         <ul className="space-y-2 text-sm text-slate-300">
-          {methods.map((method) => (
+          {sortedMethods.map((method) => (
             <li
               key={method.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/10 bg-slate-950/40 p-3"
@@ -1983,12 +2042,12 @@ function PaymentMethodsTab({ user, profile }) {
               <div>
                 <p className="font-semibold text-white">{method.name}</p>
                 <p className="text-xs text-slate-400">
-                  {accountLookup[method.accountId] ||
+                  {accountLookup[preferredAccounts[method.id]] ||
                     t("settings.paymentMethods.noAccount")}
                 </p>
               </div>
               <select
-                value={method.accountId || ""}
+                value={preferredAccounts[method.id] || ""}
                 onChange={(event) =>
                   handleUpdateAccount(method.id, event.target.value)
                 }
