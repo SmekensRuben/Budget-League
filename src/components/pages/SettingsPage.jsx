@@ -265,6 +265,8 @@ function GeneralTab({ user, profile }) {
 function CategoriesTab({ user, profile }) {
   const { t } = useTranslation("app");
   const [categories, setCategories] = useState([]);
+  const [copyStatus, setCopyStatus] = useState("");
+  const [isCopying, setIsCopying] = useState(false);
   const [formState, setFormState] = useState({
     name: "",
     type: "expense",
@@ -305,6 +307,49 @@ function CategoriesTab({ user, profile }) {
   }, [profile?.householdId, user]);
 
   const topLevelCategories = categories.filter((category) => !category.parentId);
+
+  const handleCopyFromUser = async () => {
+    if (!user || !profile?.householdId) {
+      return;
+    }
+    setIsCopying(true);
+    setCopyStatus("");
+    try {
+      const userCategoriesRef = collection(
+        db,
+        "users",
+        user.uid,
+        "categories"
+      );
+      const snapshot = await getDocs(userCategoriesRef);
+      if (snapshot.empty) {
+        setCopyStatus(t("settings.categories.copyEmpty"));
+        return;
+      }
+      await Promise.all(
+        snapshot.docs.map((docSnap) =>
+          setDoc(
+            doc(
+              db,
+              "households",
+              profile.householdId,
+              "categories",
+              docSnap.id
+            ),
+            docSnap.data(),
+            { merge: true }
+          )
+        )
+      );
+      setCopyStatus(
+        t("settings.categories.copySuccess", { count: snapshot.size })
+      );
+    } catch (error) {
+      setCopyStatus(t("settings.categories.copyError"));
+    } finally {
+      setIsCopying(false);
+    }
+  };
 
   const handleAdd = async (event) => {
     event.preventDefault();
@@ -419,11 +464,30 @@ function CategoriesTab({ user, profile }) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">{t("settings.categories.title")}</h2>
-        <p className="text-sm text-slate-400">
-          {t("settings.categories.subtitle")}
-        </p>
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">
+              {t("settings.categories.title")}
+            </h2>
+            <p className="text-sm text-slate-400">
+              {t("settings.categories.subtitle")}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleCopyFromUser}
+            disabled={!user || !profile?.householdId || isCopying}
+            className="rounded-xl border border-amber-400/40 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {isCopying
+              ? t("settings.categories.copyLoading")
+              : t("settings.categories.copy")}
+          </button>
+        </div>
+        {copyStatus ? (
+          <p className="text-sm text-amber-200">{copyStatus}</p>
+        ) : null}
       </div>
 
       <form
