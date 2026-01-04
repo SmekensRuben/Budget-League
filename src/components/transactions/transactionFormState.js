@@ -13,6 +13,8 @@ export const buildDefaultFormState = ({ profile, user }) => ({
   paymentMethod: "",
   paymentMethodId: "",
   accountId: "",
+  fromAccountId: "",
+  toAccountId: "",
   paidByUserId: user?.uid || "",
   type: "expense"
 });

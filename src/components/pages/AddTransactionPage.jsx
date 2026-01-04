@@ -55,6 +55,17 @@ export default function AddTransactionPage() {
   }, [members, user]);
 
   const requiredFields = useMemo(() => {
+    if (formState.type === "transfer") {
+      return [
+        "date",
+        "amount",
+        "currency",
+        "paidByUserId",
+        "type",
+        "fromAccountId",
+        "toAccountId"
+      ];
+    }
     const baseFields = [
       "date",
       "amount",
@@ -87,23 +98,26 @@ export default function AddTransactionPage() {
       return;
     }
 
-    const trimmedMerchant = formState.merchant.trim();
-    const merchantExists = merchants.some(
-      (merchant) =>
-        String(merchant.name || "").toLowerCase() === trimmedMerchant.toLowerCase()
-    );
-    if (trimmedMerchant && !merchantExists) {
-      const shouldCreate = window.confirm(
-        t("pages.transactions.confirmCreateMerchant", { name: trimmedMerchant })
+    if (formState.type !== "transfer") {
+      const trimmedMerchant = formState.merchant.trim();
+      const merchantExists = merchants.some(
+        (merchant) =>
+          String(merchant.name || "").toLowerCase() ===
+          trimmedMerchant.toLowerCase()
       );
-      if (shouldCreate) {
-        await addDoc(
-          collection(db, "households", profile.householdId, "merchants"),
-          {
-            name: trimmedMerchant,
-            createdAt: serverTimestamp()
-          }
+      if (trimmedMerchant && !merchantExists) {
+        const shouldCreate = window.confirm(
+          t("pages.transactions.confirmCreateMerchant", { name: trimmedMerchant })
         );
+        if (shouldCreate) {
+          await addDoc(
+            collection(db, "households", profile.householdId, "merchants"),
+            {
+              name: trimmedMerchant,
+              createdAt: serverTimestamp()
+            }
+          );
+        }
       }
     }
 

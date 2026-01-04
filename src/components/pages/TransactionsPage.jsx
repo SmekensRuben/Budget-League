@@ -52,6 +52,17 @@ export default function TransactionsPage() {
     useTransactionData({ user, profile });
 
   const requiredFields = useMemo(() => {
+    if (formState.type === "transfer") {
+      return [
+        "date",
+        "amount",
+        "currency",
+        "paidByUserId",
+        "type",
+        "fromAccountId",
+        "toAccountId"
+      ];
+    }
     const baseFields = [
       "date",
       "amount",
@@ -136,6 +147,13 @@ export default function TransactionsPage() {
     }, {});
   }, [categories]);
 
+  const accountLookup = useMemo(() => {
+    return accounts.reduce((acc, account) => {
+      acc[account.id] = account;
+      return acc;
+    }, {});
+  }, [accounts]);
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter((transaction) => {
       if (filters.startDate && transaction.date < filters.startDate) {
@@ -191,23 +209,26 @@ export default function TransactionsPage() {
       return;
     }
 
-    const trimmedMerchant = formState.merchant.trim();
-    const merchantExists = merchants.some(
-      (merchant) =>
-        String(merchant.name || "").toLowerCase() === trimmedMerchant.toLowerCase()
-    );
-    if (trimmedMerchant && !merchantExists) {
-      const shouldCreate = window.confirm(
-        t("pages.transactions.confirmCreateMerchant", { name: trimmedMerchant })
+    if (formState.type !== "transfer") {
+      const trimmedMerchant = formState.merchant.trim();
+      const merchantExists = merchants.some(
+        (merchant) =>
+          String(merchant.name || "").toLowerCase() ===
+          trimmedMerchant.toLowerCase()
       );
-      if (shouldCreate) {
-        await addDoc(
-          collection(db, "households", profile.householdId, "merchants"),
-          {
-            name: trimmedMerchant,
-            createdAt: serverTimestamp()
-          }
+      if (trimmedMerchant && !merchantExists) {
+        const shouldCreate = window.confirm(
+          t("pages.transactions.confirmCreateMerchant", { name: trimmedMerchant })
         );
+        if (shouldCreate) {
+          await addDoc(
+            collection(db, "households", profile.householdId, "merchants"),
+            {
+              name: trimmedMerchant,
+              createdAt: serverTimestamp()
+            }
+          );
+        }
       }
     }
     const transactionRef = doc(
@@ -396,6 +417,9 @@ export default function TransactionsPage() {
                 <option value="income">
                   {t("pages.transactions.types.income")}
                 </option>
+                <option value="transfer">
+                  {t("pages.transactions.types.transfer")}
+                </option>
               </select>
             </label>
             <label className="flex flex-col gap-2 text-sm">
@@ -460,19 +484,31 @@ export default function TransactionsPage() {
                   <div>
                     <p className="text-sm text-slate-400">{transaction.date}</p>
                     <p className="text-lg font-semibold text-white">
-                      {transaction.merchant || t("pages.transactions.list.unnamed")}
+                      {transaction.type === "transfer"
+                        ? t("pages.transactions.types.transfer")
+                        : transaction.merchant ||
+                          t("pages.transactions.list.unnamed")}
                     </p>
                     <p className="text-sm text-slate-300">
-                      {[
-                        categoryLookup[transaction.categoryId] ||
-                          transaction.category ||
-                          t("pages.transactions.list.noCategory"),
-                        subcategoryLookup[transaction.subcategoryId] ||
-                          transaction.subcategory ||
-                          null
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
+                      {transaction.type === "transfer"
+                        ? t("pages.transactions.list.transferAccounts", {
+                            from:
+                              accountLookup[transaction.fromAccountId]?.name ||
+                              t("pages.transactions.list.noAccount"),
+                            to:
+                              accountLookup[transaction.toAccountId]?.name ||
+                              t("pages.transactions.list.noAccount")
+                          })
+                        : [
+                            categoryLookup[transaction.categoryId] ||
+                              transaction.category ||
+                              t("pages.transactions.list.noCategory"),
+                            subcategoryLookup[transaction.subcategoryId] ||
+                              transaction.subcategory ||
+                              null
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
                     </p>
                     <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
                       {transaction.type
@@ -485,8 +521,17 @@ export default function TransactionsPage() {
                       {transaction.amount} {transaction.currency}
                     </p>
                     <p className="text-sm text-slate-300">
-                      {transaction.paymentMethod ||
-                        t("pages.transactions.list.noPaymentMethod")}
+                      {transaction.type === "transfer"
+                        ? t("pages.transactions.list.transferAccounts", {
+                            from:
+                              accountLookup[transaction.fromAccountId]?.name ||
+                              t("pages.transactions.list.noAccount"),
+                            to:
+                              accountLookup[transaction.toAccountId]?.name ||
+                              t("pages.transactions.list.noAccount")
+                          })
+                        : transaction.paymentMethod ||
+                          t("pages.transactions.list.noPaymentMethod")}
                     </p>
                     <p className="text-sm text-slate-400">
                       {memberLookup[transaction.paidByUserId] ||

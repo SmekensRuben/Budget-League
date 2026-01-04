@@ -93,6 +93,8 @@
         "incomeStability": "Inkomensstabiliteit",
         "paymentMethod": "Betaalmethode",
         "account": "Account",
+        "fromAccount": "Van account",
+        "toAccount": "Naar account",
         "paidBy": "Betaald door",
         "description": "Omschrijving",
         "descriptionPlaceholder": "Optionele omschrijving"
@@ -105,17 +107,21 @@
         "incomeStability": "Kies een inkomensstabiliteit",
         "paymentMethod": "Kies een betaalmethode",
         "account": "Kies een account",
+        "fromAccount": "Kies een bronaccount",
+        "toAccount": "Kies een doelaccount",
         "paidBy": "Kies een householdlid"
       },
       "sections": {
         "details": "Details",
         "categorization": "Categorisatie",
+        "transfer": "Overboekingsdetails",
         "payment": "Betaling",
         "notes": "Notities"
       },
       "types": {
         "expense": "Expense",
-        "income": "Income"
+        "income": "Income",
+        "transfer": "Overboeking"
       },
       "spendTypes": {
         "essential": "Essential",
@@ -136,7 +142,7 @@
       },
       "filters": {
         "dateRange": "Periode",
-        "type": "Income / expense",
+        "type": "Type",
         "householdUser": "Householdlid",
         "category": "Categorie",
         "all": "Alles"
@@ -146,7 +152,9 @@
         "subtitle": "Bekijk en filter household transacties.",
         "empty": "Geen transacties gevonden voor deze filters.",
         "unnamed": "Onbekende merchant",
+        "transferAccounts": "{{from}} → {{to}}",
         "noCategory": "Geen categorie",
+        "noAccount": "Geen account",
         "noPaymentMethod": "Geen betaalmethode",
         "noPaidBy": "Geen householdlid",
         "noType": "Geen type"
@@ -160,7 +168,16 @@
     "budgets": {
       "title": "Budgetten",
       "subtitle": "Plan maandelijkse limieten en doelen.",
-      "placeholder": "Budgetplanning verschijnt hier."
+      "heading": "Maandbudgetten per categorie",
+      "description": "Koppel budgetten per categorie en volg je uitgaven.",
+      "empty": "Nog geen expense-categorieën beschikbaar.",
+      "monthlyBudget": "Maandbudget",
+      "budgetPlaceholder": "0,00",
+      "save": "Budget opslaan",
+      "saved": "Budget bijgewerkt.",
+      "spent": "{{spent}} uitgegeven van {{budget}}",
+      "overBudget": "Budget overschreden",
+      "noHousehold": "Word lid van een household om budgetten in te stellen."
     },
     "insights": {
       "title": "Inzichten",
