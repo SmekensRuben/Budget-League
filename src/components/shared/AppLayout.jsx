@@ -1,4 +1,5 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { auth, signOut } from "../../firebaseConfig";
 
@@ -11,7 +12,12 @@ const navLinkClasses = ({ isActive }) =>
 
 export default function AppLayout({ title, subtitle, children }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation("app");
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     try {

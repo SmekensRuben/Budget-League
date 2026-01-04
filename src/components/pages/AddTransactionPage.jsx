@@ -52,7 +52,6 @@ export default function AddTransactionPage() {
       "date",
       "amount",
       "currency",
-      "merchant",
       "paidByUserId",
       "type",
       "categoryId",
