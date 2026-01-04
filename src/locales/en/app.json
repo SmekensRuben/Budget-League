@@ -93,6 +93,8 @@
         "incomeStability": "Income stability",
         "paymentMethod": "Payment method",
         "account": "Account",
+        "fromAccount": "From account",
+        "toAccount": "To account",
         "paidBy": "Paid by",
         "description": "Description",
         "descriptionPlaceholder": "Optional description"
@@ -105,17 +107,21 @@
         "incomeStability": "Select an income stability",
         "paymentMethod": "Select a payment method",
         "account": "Select an account",
+        "fromAccount": "Select a source account",
+        "toAccount": "Select a destination account",
         "paidBy": "Select a household member"
       },
       "sections": {
         "details": "Details",
         "categorization": "Categorization",
+        "transfer": "Transfer details",
         "payment": "Payment",
         "notes": "Notes"
       },
       "types": {
         "expense": "Expense",
-        "income": "Income"
+        "income": "Income",
+        "transfer": "Transfer"
       },
       "spendTypes": {
         "essential": "Essential",
@@ -136,7 +142,7 @@
       },
       "filters": {
         "dateRange": "Date range",
-        "type": "Income / expense",
+        "type": "Type",
         "householdUser": "Household user",
         "category": "Category",
         "all": "All"
@@ -146,7 +152,9 @@
         "subtitle": "Review and filter household entries.",
         "empty": "No transactions match these filters yet.",
         "unnamed": "Unnamed merchant",
+        "transferAccounts": "{{from}} → {{to}}",
         "noCategory": "No category",
+        "noAccount": "No account",
         "noPaymentMethod": "No payment method",
         "noPaidBy": "No household member",
         "noType": "No type"
@@ -160,7 +168,16 @@
     "budgets": {
       "title": "Budgets",
       "subtitle": "Plan monthly limits and targets.",
-      "placeholder": "Budget planning will appear here."
+      "heading": "Monthly category budgets",
+      "description": "Set budgets per category and track spend as the month progresses.",
+      "empty": "No expense categories available yet.",
+      "monthlyBudget": "Monthly budget",
+      "budgetPlaceholder": "0.00",
+      "save": "Save budget",
+      "saved": "Budget updated.",
+      "spent": "{{spent}} spent of {{budget}}",
+      "overBudget": "Over budget",
+      "noHousehold": "Join or create a household to set budgets."
     },
     "insights": {
       "title": "Insights",

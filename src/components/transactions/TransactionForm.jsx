@@ -57,16 +57,30 @@ export default function TransactionForm({
       return;
     }
     if (name === "type") {
-      setFormState((prev) => ({
-        ...prev,
-        type: value,
-        categoryId: "",
-        category: "",
-        subcategoryId: "",
-        subcategory: "",
-        spendType: "",
-        incomeStability: ""
-      }));
+      setFormState((prev) => {
+        const baseState = {
+          ...prev,
+          type: value,
+          categoryId: "",
+          category: "",
+          subcategoryId: "",
+          subcategory: "",
+          spendType: "",
+          incomeStability: ""
+        };
+        if (value === "transfer") {
+          return {
+            ...baseState,
+            paymentMethod: "",
+            paymentMethodId: "",
+            accountId: "",
+            fromAccountId: "",
+            toAccountId: "",
+            merchant: ""
+          };
+        }
+        return baseState;
+      });
       return;
     }
     if (name === "categoryId") {
@@ -158,6 +172,7 @@ export default function TransactionForm({
             >
               <option value="expense">{t("pages.transactions.types.expense")}</option>
               <option value="income">{t("pages.transactions.types.income")}</option>
+              <option value="transfer">{t("pages.transactions.types.transfer")}</option>
             </select>
           </label>
           <label className="flex flex-col gap-2 text-sm">
@@ -172,182 +187,273 @@ export default function TransactionForm({
               disabled={disabled}
             />
           </label>
-          <label className="flex flex-col gap-2 text-sm md:col-span-2">
-            {t("pages.transactions.fields.merchant")}
-            <input
-              type="text"
-              name="merchant"
-              value={formState.merchant}
-              onChange={handleChange}
-              list="merchant-options"
-              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              placeholder={t("pages.transactions.placeholders.merchant")}
-              disabled={disabled}
-            />
-            <datalist id="merchant-options">
-              {merchants.map((merchant) => (
-                <option key={merchant.id} value={merchant.name}>
-                  {merchant.name}
-                </option>
-              ))}
-            </datalist>
-          </label>
+          {formState.type !== "transfer" ? (
+            <label className="flex flex-col gap-2 text-sm md:col-span-2">
+              {t("pages.transactions.fields.merchant")}
+              <input
+                type="text"
+                name="merchant"
+                value={formState.merchant}
+                onChange={handleChange}
+                list="merchant-options"
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                placeholder={t("pages.transactions.placeholders.merchant")}
+                disabled={disabled}
+              />
+              <datalist id="merchant-options">
+                {merchants.map((merchant) => (
+                  <option key={merchant.id} value={merchant.name}>
+                    {merchant.name}
+                  </option>
+                ))}
+              </datalist>
+            </label>
+          ) : null}
         </div>
       </section>
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
-          {t("pages.transactions.sections.categorization")}
-        </h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <label className="flex flex-col gap-2 text-sm">
-            {t("pages.transactions.fields.category")}*
-            <select
-              name="categoryId"
-              value={formState.categoryId}
-              onChange={handleChange}
-              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              disabled={disabled}
-              required
-            >
-              <option value="">{t("pages.transactions.placeholders.category")}</option>
-              {topLevelCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            {t("pages.transactions.fields.subcategory")}*
-            <select
-              name="subcategoryId"
-              value={formState.subcategoryId}
-              onChange={handleChange}
-              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              disabled={disabled || !formState.categoryId}
-              required
-            >
-              <option value="">{t("pages.transactions.placeholders.subcategory")}</option>
-              {subcategoryOptions.map((subcategory) => (
-                <option key={subcategory.id} value={subcategory.id}>
-                  {subcategory.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {formState.type === "expense" ? (
+      {formState.type !== "transfer" ? (
+        <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
+            {t("pages.transactions.sections.categorization")}
+          </h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
             <label className="flex flex-col gap-2 text-sm">
-              {t("pages.transactions.fields.spendType")}*
+              {t("pages.transactions.fields.category")}*
               <select
-                name="spendType"
-                value={formState.spendType}
+                name="categoryId"
+                value={formState.categoryId}
                 onChange={handleChange}
                 className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                disabled={disabled || !formState.subcategoryId}
+                disabled={disabled}
                 required
               >
                 <option value="">
-                  {t("pages.transactions.placeholders.spendType")}
+                  {t("pages.transactions.placeholders.category")}
                 </option>
-                <option value="essential">
-                  {t("pages.transactions.spendTypes.essential")}
-                </option>
-                <option value="discretionary">
-                  {t("pages.transactions.spendTypes.discretionary")}
-                </option>
+                {topLevelCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
               </select>
             </label>
-          ) : (
             <label className="flex flex-col gap-2 text-sm">
-              {t("pages.transactions.fields.incomeStability")}*
+              {t("pages.transactions.fields.subcategory")}*
               <select
-                name="incomeStability"
-                value={formState.incomeStability}
+                name="subcategoryId"
+                value={formState.subcategoryId}
                 onChange={handleChange}
                 className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                disabled={disabled || !formState.subcategoryId}
+                disabled={disabled || !formState.categoryId}
                 required
               >
                 <option value="">
-                  {t("pages.transactions.placeholders.incomeStability")}
+                  {t("pages.transactions.placeholders.subcategory")}
                 </option>
-                <option value="regular">
-                  {t("pages.transactions.incomeStabilities.regular")}
-                </option>
-                <option value="irregular">
-                  {t("pages.transactions.incomeStabilities.irregular")}
-                </option>
+                {subcategoryOptions.map((subcategory) => (
+                  <option key={subcategory.id} value={subcategory.id}>
+                    {subcategory.name}
+                  </option>
+                ))}
               </select>
             </label>
-          )}
-        </div>
-      </section>
+            {formState.type === "expense" ? (
+              <label className="flex flex-col gap-2 text-sm">
+                {t("pages.transactions.fields.spendType")}*
+                <select
+                  name="spendType"
+                  value={formState.spendType}
+                  onChange={handleChange}
+                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                  disabled={disabled || !formState.subcategoryId}
+                  required
+                >
+                  <option value="">
+                    {t("pages.transactions.placeholders.spendType")}
+                  </option>
+                  <option value="essential">
+                    {t("pages.transactions.spendTypes.essential")}
+                  </option>
+                  <option value="discretionary">
+                    {t("pages.transactions.spendTypes.discretionary")}
+                  </option>
+                </select>
+              </label>
+            ) : (
+              <label className="flex flex-col gap-2 text-sm">
+                {t("pages.transactions.fields.incomeStability")}*
+                <select
+                  name="incomeStability"
+                  value={formState.incomeStability}
+                  onChange={handleChange}
+                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                  disabled={disabled || !formState.subcategoryId}
+                  required
+                >
+                  <option value="">
+                    {t("pages.transactions.placeholders.incomeStability")}
+                  </option>
+                  <option value="regular">
+                    {t("pages.transactions.incomeStabilities.regular")}
+                  </option>
+                  <option value="irregular">
+                    {t("pages.transactions.incomeStabilities.irregular")}
+                  </option>
+                </select>
+              </label>
+            )}
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
+            {t("pages.transactions.sections.transfer")}
+          </h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.fromAccount")}*
+              <select
+                name="fromAccountId"
+                value={formState.fromAccountId}
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                disabled={disabled}
+                required
+              >
+                <option value="">
+                  {t("pages.transactions.placeholders.fromAccount")}
+                </option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.toAccount")}*
+              <select
+                name="toAccountId"
+                value={formState.toAccountId}
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                disabled={disabled}
+                required
+              >
+                <option value="">{t("pages.transactions.placeholders.toAccount")}</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+      )}
 
-      <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
-        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
-          {t("pages.transactions.sections.payment")}
-        </h3>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          <label className="flex flex-col gap-2 text-sm">
-            {t("pages.transactions.fields.paymentMethod")}
-            <select
-              name="paymentMethodId"
-              value={
-                formState.paymentMethodId ||
-                paymentMethods.find((method) => method.name === formState.paymentMethod)
-                  ?.id ||
-                ""
-              }
-              onChange={handleChange}
-              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              disabled={disabled}
-            >
-              <option value="">{t("pages.transactions.placeholders.paymentMethod")}</option>
-              {paymentMethods.map((method) => (
-                <option key={method.id} value={method.id}>
-                  {method.name}
+      {formState.type !== "transfer" ? (
+        <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
+            {t("pages.transactions.sections.payment")}
+          </h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-3">
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.paymentMethod")}
+              <select
+                name="paymentMethodId"
+                value={
+                  formState.paymentMethodId ||
+                  paymentMethods.find(
+                    (method) => method.name === formState.paymentMethod
+                  )?.id ||
+                  ""
+                }
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                disabled={disabled}
+              >
+                <option value="">
+                  {t("pages.transactions.placeholders.paymentMethod")}
                 </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            {t("pages.transactions.fields.account")}
-            <select
-              name="accountId"
-              value={formState.accountId}
-              onChange={handleChange}
-              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              disabled={disabled}
-            >
-              <option value="">{t("pages.transactions.placeholders.account")}</option>
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.name}
+                {paymentMethods.map((method) => (
+                  <option key={method.id} value={method.id}>
+                    {method.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.account")}
+              <select
+                name="accountId"
+                value={formState.accountId}
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                disabled={disabled}
+              >
+                <option value="">
+                  {t("pages.transactions.placeholders.account")}
                 </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-2 text-sm">
-            {t("pages.transactions.fields.paidBy")}*
-            <select
-              name="paidByUserId"
-              value={formState.paidByUserId}
-              onChange={handleChange}
-              className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              required
-              disabled={disabled}
-            >
-              <option value="">{t("pages.transactions.placeholders.paidBy")}</option>
-              {paidByOptions.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.displayName || member.email || member.id}
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.paidBy")}*
+              <select
+                name="paidByUserId"
+                value={formState.paidByUserId}
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                required
+                disabled={disabled}
+              >
+                <option value="">
+                  {t("pages.transactions.placeholders.paidBy")}
                 </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
+                {paidByOptions.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.displayName || member.email || member.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
+          <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
+            {t("pages.transactions.sections.payment")}
+          </h3>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.fields.paidBy")}*
+              <select
+                name="paidByUserId"
+                value={formState.paidByUserId}
+                onChange={handleChange}
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                required
+                disabled={disabled}
+              >
+                <option value="">
+                  {t("pages.transactions.placeholders.paidBy")}
+                </option>
+                {paidByOptions.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.displayName || member.email || member.id}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </section>
+      )}
 
       <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
         <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">

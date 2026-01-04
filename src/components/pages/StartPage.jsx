@@ -243,7 +243,32 @@ export default function StartPage() {
   }, [accountFilters.accountIds, accountLookup]);
 
   const accountTransactions = useMemo(() => {
-    return transactions.filter((transaction) => transaction.accountId);
+    return transactions.flatMap((transaction) => {
+      const amount = parseAmount(transaction.amount);
+      if (transaction.type === "transfer") {
+        const entries = [];
+        if (transaction.fromAccountId) {
+          entries.push({
+            ...transaction,
+            accountId: transaction.fromAccountId,
+            delta: -amount
+          });
+        }
+        if (transaction.toAccountId) {
+          entries.push({
+            ...transaction,
+            accountId: transaction.toAccountId,
+            delta: amount
+          });
+        }
+        return entries;
+      }
+      if (transaction.accountId) {
+        const delta = transaction.type === "income" ? amount : -amount;
+        return [{ ...transaction, delta }];
+      }
+      return [];
+    });
   }, [transactions]);
 
   const accountChartData = useMemo(() => {
@@ -312,8 +337,11 @@ export default function StartPage() {
         if (!transaction.date) {
           return acc;
         }
-        const amount = parseAmount(transaction.amount);
-        const delta = transaction.type === "income" ? amount : -amount;
+        const delta =
+          typeof transaction.delta === "number"
+            ? transaction.delta
+            : parseAmount(transaction.amount) *
+              (transaction.type === "income" ? 1 : -1);
         acc[transaction.date] = (acc[transaction.date] || 0) + delta;
         return acc;
       }, {});
@@ -323,8 +351,12 @@ export default function StartPage() {
       if (firstDate) {
         accountTransactionsAll.forEach((transaction) => {
           if (transaction.date < firstDate) {
-            const amount = parseAmount(transaction.amount);
-            running += transaction.type === "income" ? amount : -amount;
+            const delta =
+              typeof transaction.delta === "number"
+                ? transaction.delta
+                : parseAmount(transaction.amount) *
+                  (transaction.type === "income" ? 1 : -1);
+            running += delta;
           }
         });
       }
@@ -749,22 +781,6 @@ export default function StartPage() {
   return (
     <AppLayout title={t("pages.start.title")} subtitle={t("pages.start.subtitle")}>
       <div className="space-y-6">
-        <section className="rounded-2xl border border-white/10 bg-slate-900/50 p-6 shadow-xl shadow-slate-950/40">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.35em] text-amber-300/80">
-                {t("pages.start.kicker")}
-              </p>
-              <h2 className="mt-2 text-2xl font-bold">
-                {t("pages.start.heading")}
-              </h2>
-              <p className="mt-2 text-sm text-slate-400">
-                {t("pages.start.description")}
-              </p>
-            </div>
-          </div>
-        </section>
-
         <section className="rounded-2xl border border-white/10 bg-slate-900/50 p-6 shadow-xl shadow-slate-950/40">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
