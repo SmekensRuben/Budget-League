@@ -317,13 +317,15 @@ function CategoriesTab({ user, profile }) {
 
   useEffect(() => {
     setExpandedCategories((prev) => {
+      let changed = false;
       const next = { ...prev };
       topLevelCategories.forEach((category) => {
         if (next[category.id] === undefined) {
           next[category.id] = false;
+          changed = true;
         }
       });
-      return next;
+      return changed ? next : prev;
     });
   }, [topLevelCategories]);
 
