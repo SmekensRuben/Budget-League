@@ -12,6 +12,20 @@ import {
   query
 } from "../../firebaseConfig";
 
+const getAccountVisibility = (account, userId) => {
+  const ownerIds = Array.isArray(account.ownerIds)
+    ? account.ownerIds
+    : account.ownerId
+      ? [account.ownerId]
+      : [];
+  const visibleToMemberIds = Array.isArray(account.visibleToMemberIds)
+    ? account.visibleToMemberIds
+    : Array.isArray(account.sharedMemberIds)
+      ? account.sharedMemberIds
+      : [];
+  return ownerIds.includes(userId) || visibleToMemberIds.includes(userId);
+};
+
 export default function StartPage() {
   const { t } = useTranslation("app");
   const { user, profile } = useAuthContext();
@@ -109,20 +123,27 @@ export default function StartPage() {
   }, [profile?.householdId]);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
       setAccounts([]);
       return;
     }
-    const accountsRef = collection(db, "users", user.uid, "accounts");
+    const accountsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "accounts"
+    );
     const unsubscribe = onSnapshot(accountsRef, (snapshot) => {
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
+      const data = snapshot.docs
+        .map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        }))
+        .filter((account) => getAccountVisibility(account, user.uid));
       setAccounts(data);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [profile?.householdId, user]);
 
   useEffect(() => {
     if (!user) {

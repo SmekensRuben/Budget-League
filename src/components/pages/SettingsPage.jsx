@@ -23,6 +23,32 @@ const notificationDefaults = {
 
 const currencyOptions = ["EUR", "USD", "GBP"];
 
+const getAccountOwnerIds = (account) => {
+  if (Array.isArray(account.ownerIds)) {
+    return account.ownerIds;
+  }
+  if (account.ownerId) {
+    return [account.ownerId];
+  }
+  return [];
+};
+
+const getAccountVisibleIds = (account) => {
+  if (Array.isArray(account.visibleToMemberIds)) {
+    return account.visibleToMemberIds;
+  }
+  if (Array.isArray(account.sharedMemberIds)) {
+    return account.sharedMemberIds;
+  }
+  return [];
+};
+
+const isAccountVisibleToUser = (account, userId) => {
+  const ownerIds = getAccountOwnerIds(account);
+  const visibleIds = getAccountVisibleIds(account);
+  return ownerIds.includes(userId) || visibleIds.includes(userId);
+};
+
 export default function SettingsPage() {
   const { t } = useTranslation("app");
   const { user, profile } = useAuthContext();
@@ -82,7 +108,7 @@ export default function SettingsPage() {
             <HouseholdTab user={user} profile={profile} />
           ) : null}
           {activeTab === "paymentMethods" ? (
-            <PaymentMethodsTab user={user} />
+            <PaymentMethodsTab user={user} profile={profile} />
           ) : null}
           {activeTab === "merchants" ? <MerchantsTab user={user} /> : null}
           {activeTab === "data" ? (
@@ -797,24 +823,34 @@ function AccountsTab({ user, profile }) {
     openingBalance: "",
     openingBalanceDate: ""
   });
-  const [memberSelections, setMemberSelections] = useState({});
+  const [ownerSelections, setOwnerSelections] = useState({});
+  const [visibilitySelections, setVisibilitySelections] = useState({});
 
-  const getAccountOwnerId = (account) => account.ownerId || user?.uid;
+  const isAccountOwner = (account) =>
+    getAccountOwnerIds(account).includes(user?.uid);
 
   useEffect(() => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
+      setAccounts([]);
       return;
     }
-    const accountsRef = collection(db, "users", user.uid, "accounts");
+    const accountsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "accounts"
+    );
     const unsubscribe = onSnapshot(accountsRef, (snapshot) => {
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
+      const data = snapshot.docs
+        .map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        }))
+        .filter((account) => isAccountVisibleToUser(account, user.uid));
       setAccounts(data);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [profile?.householdId, user]);
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -891,17 +927,20 @@ function AccountsTab({ user, profile }) {
 
   const handleAdd = async (event) => {
     event.preventDefault();
-    if (!user || !formState.name.trim()) {
+    if (!user || !profile?.householdId || !formState.name.trim()) {
       return;
     }
-    await addDoc(collection(db, "users", user.uid, "accounts"), {
-      name: formState.name.trim(),
-      openingBalance: Number(formState.openingBalance) || 0,
-      openingBalanceDate: formState.openingBalanceDate || null,
-      ownerId: user.uid,
-      sharedMemberIds: [],
-      createdAt: serverTimestamp()
-    });
+    await addDoc(
+      collection(db, "households", profile.householdId, "accounts"),
+      {
+        name: formState.name.trim(),
+        openingBalance: Number(formState.openingBalance) || 0,
+        openingBalanceDate: formState.openingBalanceDate || null,
+        ownerIds: [user.uid],
+        visibleToMemberIds: [user.uid],
+        createdAt: serverTimestamp()
+      }
+    );
     setFormState({
       name: "",
       openingBalance: "",
@@ -931,99 +970,135 @@ function AccountsTab({ user, profile }) {
   };
 
   const handleEditSave = async (accountId) => {
-    if (!user || !editState.name.trim()) {
+    if (!user || !profile?.householdId || !editState.name.trim()) {
       return;
     }
     const account = accounts.find((item) => item.id === accountId);
-    const ownerId = getAccountOwnerId(account || {});
-    if (ownerId !== user.uid) {
+    if (!account || !isAccountOwner(account)) {
       return;
     }
-    const sharedMemberIds = account?.sharedMemberIds || [];
-    const updatePayload = {
-      name: editState.name.trim(),
-      openingBalance: Number(editState.openingBalance) || 0,
-      openingBalanceDate: editState.openingBalanceDate || null,
-      ownerId
-    };
-    await updateDoc(doc(db, "users", user.uid, "accounts", accountId), {
-      ...updatePayload
-    });
-    await Promise.all(
-      sharedMemberIds.map((memberId) =>
-        setDoc(doc(db, "users", memberId, "accounts", accountId), updatePayload, {
-          merge: true
-        })
-      )
+    await updateDoc(
+      doc(db, "households", profile.householdId, "accounts", accountId),
+      {
+        name: editState.name.trim(),
+        openingBalance: Number(editState.openingBalance) || 0,
+        openingBalanceDate: editState.openingBalanceDate || null
+      }
     );
     handleEditCancel();
   };
 
   const handleDelete = async (accountId) => {
-    if (!user) {
+    if (!user || !profile?.householdId) {
       return;
     }
     const account = accounts.find((item) => item.id === accountId);
-    const ownerId = getAccountOwnerId(account || {});
-    if (ownerId !== user.uid) {
+    if (!account || !isAccountOwner(account)) {
       return;
     }
-    const sharedMemberIds = account?.sharedMemberIds || [];
-    await Promise.all(
-      sharedMemberIds.map((memberId) =>
-        deleteDoc(doc(db, "users", memberId, "accounts", accountId))
-      )
+    await deleteDoc(
+      doc(db, "households", profile.householdId, "accounts", accountId)
     );
-    await deleteDoc(doc(db, "users", user.uid, "accounts", accountId));
   };
 
-  const handleAddSharedMember = async (account) => {
-    if (!user) {
+  const handleAddOwner = async (account) => {
+    if (!user || !profile?.householdId) {
       return;
     }
-    const ownerId = getAccountOwnerId(account);
-    if (ownerId !== user.uid) {
+    if (!isAccountOwner(account)) {
       return;
     }
-    const nextMemberId = memberSelections[account.id];
+    const nextOwnerId = ownerSelections[account.id];
+    if (!nextOwnerId) {
+      return;
+    }
+    const ownerIds = getAccountOwnerIds(account);
+    if (ownerIds.includes(nextOwnerId)) {
+      return;
+    }
+    const visibleIds = getAccountVisibleIds(account);
+    const updatedOwnerIds = [...ownerIds, nextOwnerId];
+    const updatedVisibleIds = visibleIds.includes(nextOwnerId)
+      ? visibleIds
+      : [...visibleIds, nextOwnerId];
+    await updateDoc(
+      doc(db, "households", profile.householdId, "accounts", account.id),
+      {
+        ownerIds: updatedOwnerIds,
+        visibleToMemberIds: updatedVisibleIds
+      }
+    );
+    setOwnerSelections((prev) => ({ ...prev, [account.id]: "" }));
+  };
+
+  const handleRemoveOwner = async (account, memberId) => {
+    if (!user || !profile?.householdId) {
+      return;
+    }
+    if (!isAccountOwner(account)) {
+      return;
+    }
+    const ownerIds = getAccountOwnerIds(account);
+    if (ownerIds.length <= 1) {
+      return;
+    }
+    const updatedOwnerIds = ownerIds.filter((id) => id !== memberId);
+    await updateDoc(
+      doc(db, "households", profile.householdId, "accounts", account.id),
+      {
+        ownerIds: updatedOwnerIds
+      }
+    );
+  };
+
+  const handleAddVisibility = async (account) => {
+    if (!user || !profile?.householdId) {
+      return;
+    }
+    if (!isAccountOwner(account)) {
+      return;
+    }
+    const nextMemberId = visibilitySelections[account.id];
     if (!nextMemberId) {
       return;
     }
-    const sharedMemberIds = account.sharedMemberIds || [];
-    if (sharedMemberIds.includes(nextMemberId)) {
+    const visibleIds = getAccountVisibleIds(account);
+    if (visibleIds.includes(nextMemberId)) {
       return;
     }
-    await updateDoc(doc(db, "users", user.uid, "accounts", account.id), {
-      sharedMemberIds: [...sharedMemberIds, nextMemberId]
-    });
-    await setDoc(doc(db, "users", nextMemberId, "accounts", account.id), {
-      name: account.name,
-      openingBalance: account.openingBalance || 0,
-      openingBalanceDate: account.openingBalanceDate || null,
-      ownerId,
-      sharedMemberIds: [...sharedMemberIds, nextMemberId],
-      createdAt: account.createdAt || serverTimestamp()
-    });
-    setMemberSelections((prev) => ({ ...prev, [account.id]: "" }));
+    await updateDoc(
+      doc(db, "households", profile.householdId, "accounts", account.id),
+      {
+        visibleToMemberIds: [...visibleIds, nextMemberId]
+      }
+    );
+    setVisibilitySelections((prev) => ({ ...prev, [account.id]: "" }));
   };
 
-  const handleRemoveSharedMember = async (account, memberId) => {
-    if (!user) {
+  const handleRemoveVisibility = async (account, memberId) => {
+    if (!user || !profile?.householdId) {
       return;
     }
-    const ownerId = getAccountOwnerId(account);
-    if (ownerId !== user.uid) {
+    if (!isAccountOwner(account)) {
       return;
     }
-    const sharedMemberIds = account.sharedMemberIds || [];
-    await updateDoc(doc(db, "users", user.uid, "accounts", account.id), {
-      sharedMemberIds: sharedMemberIds.filter((id) => id !== memberId)
-    });
-    await deleteDoc(doc(db, "users", memberId, "accounts", account.id));
+    const ownerIds = getAccountOwnerIds(account);
+    if (ownerIds.includes(memberId)) {
+      return;
+    }
+    const visibleIds = getAccountVisibleIds(account);
+    await updateDoc(
+      doc(db, "households", profile.householdId, "accounts", account.id),
+      {
+        visibleToMemberIds: visibleIds.filter((id) => id !== memberId)
+      }
+    );
   };
 
   const getMemberLabel = (member) =>
     member.displayName || member.email || member.id;
+  const resolveMember = (memberId) =>
+    members.find((member) => member.id === memberId) || { id: memberId };
 
   const availableMembers = members.filter((member) => member.id !== user?.uid);
 
@@ -1086,7 +1161,7 @@ function AccountsTab({ user, profile }) {
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-semibold text-white">{account.name}</span>
-                {getAccountOwnerId(account) === user?.uid ? (
+                {isAccountOwner(account) ? (
                   <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                     <button
                       type="button"
@@ -1179,84 +1254,156 @@ function AccountsTab({ user, profile }) {
                   </div>
                 </>
               )}
-              {getAccountOwnerId(account) === user?.uid ? (
-                <div className="mt-4 space-y-2 text-xs text-slate-300">
+              <div className="mt-4 space-y-4 text-xs text-slate-300">
+                <div className="space-y-2">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                    {t("settings.accounts.householdUsersLabel")}
+                    {t("settings.accounts.ownersLabel")}
                   </p>
-                  {(account.sharedMemberIds || []).length === 0 ? (
+                  {getAccountOwnerIds(account).length === 0 ? (
                     <p className="text-xs text-slate-400">
-                      {t("settings.accounts.noHouseholdUsers")}
+                      {t("settings.accounts.ownersEmpty")}
                     </p>
                   ) : (
                     <div className="flex flex-wrap gap-2">
-                      {(account.sharedMemberIds || [])
-                        .map((memberId) =>
-                          members.find((member) => member.id === memberId)
-                        )
-                        .filter(Boolean)
+                      {getAccountOwnerIds(account)
+                        .map((memberId) => resolveMember(memberId))
                         .map((member) => (
                           <span
                             key={member.id}
                             className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
                           >
                             {getMemberLabel(member)}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleRemoveSharedMember(account, member.id)
-                              }
-                              className="text-red-200 transition hover:text-red-100"
-                            >
-                              {t("settings.accounts.removeUser")}
-                            </button>
+                            {isAccountOwner(account) ? (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveOwner(account, member.id)}
+                                className="text-red-200 transition hover:text-red-100"
+                              >
+                                {t("settings.accounts.removeOwner")}
+                              </button>
+                            ) : null}
                           </span>
                         ))}
                     </div>
                   )}
-                  {availableMembers.length === 0 ? (
-                    <p className="text-xs text-slate-500">
-                      {t("settings.accounts.householdUsersEmpty")}
+                  {isAccountOwner(account) ? (
+                    availableMembers.length === 0 ? (
+                      <p className="text-xs text-slate-500">
+                        {t("settings.accounts.householdUsersEmpty")}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={ownerSelections[account.id] || ""}
+                          onChange={(event) =>
+                            setOwnerSelections((prev) => ({
+                              ...prev,
+                              [account.id]: event.target.value
+                            }))
+                          }
+                          className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
+                        >
+                          <option value="">
+                            {t("settings.accounts.ownerPlaceholder")}
+                          </option>
+                          {availableMembers
+                            .filter(
+                              (member) =>
+                                !getAccountOwnerIds(account).includes(member.id)
+                            )
+                            .map((member) => (
+                              <option key={member.id} value={member.id}>
+                                {getMemberLabel(member)}
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleAddOwner(account)}
+                          className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                        >
+                          {t("settings.accounts.addOwner")}
+                        </button>
+                      </div>
+                    )
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                    {t("settings.accounts.visibilityLabel")}
+                  </p>
+                  {getAccountVisibleIds(account).length === 0 ? (
+                    <p className="text-xs text-slate-400">
+                      {t("settings.accounts.visibilityEmpty")}
                     </p>
                   ) : (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <select
-                        value={memberSelections[account.id] || ""}
-                        onChange={(event) =>
-                          setMemberSelections((prev) => ({
-                            ...prev,
-                            [account.id]: event.target.value
-                          }))
-                        }
-                        className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
-                      >
-                        <option value="">
-                          {t("settings.accounts.householdUserPlaceholder")}
-                        </option>
-                        {availableMembers
-                          .filter(
-                            (member) =>
-                              !(account.sharedMemberIds || []).includes(
-                                member.id
-                              )
-                          )
-                          .map((member) => (
-                            <option key={member.id} value={member.id}>
-                              {getMemberLabel(member)}
-                            </option>
-                          ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => handleAddSharedMember(account)}
-                        className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
-                      >
-                        {t("settings.accounts.addHouseholdUser")}
-                      </button>
+                    <div className="flex flex-wrap gap-2">
+                      {getAccountVisibleIds(account)
+                        .map((memberId) => resolveMember(memberId))
+                        .map((member) => (
+                          <span
+                            key={member.id}
+                            className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-900/60 px-3 py-1"
+                          >
+                            {getMemberLabel(member)}
+                            {isAccountOwner(account) ? (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleRemoveVisibility(account, member.id)
+                                }
+                                className="text-red-200 transition hover:text-red-100"
+                              >
+                                {t("settings.accounts.removeVisibility")}
+                              </button>
+                            ) : null}
+                          </span>
+                        ))}
                     </div>
                   )}
+                  {isAccountOwner(account) ? (
+                    availableMembers.length === 0 ? (
+                      <p className="text-xs text-slate-500">
+                        {t("settings.accounts.householdUsersEmpty")}
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <select
+                          value={visibilitySelections[account.id] || ""}
+                          onChange={(event) =>
+                            setVisibilitySelections((prev) => ({
+                              ...prev,
+                              [account.id]: event.target.value
+                            }))
+                          }
+                          className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
+                        >
+                          <option value="">
+                            {t("settings.accounts.visibilityPlaceholder")}
+                          </option>
+                          {availableMembers
+                            .filter(
+                              (member) =>
+                                !getAccountVisibleIds(account).includes(member.id)
+                            )
+                            .map((member) => (
+                              <option key={member.id} value={member.id}>
+                                {getMemberLabel(member)}
+                              </option>
+                            ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleAddVisibility(account)}
+                          className="rounded-lg border border-amber-400/40 px-3 py-2 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                        >
+                          {t("settings.accounts.addVisibility")}
+                        </button>
+                      </div>
+                    )
+                  ) : null}
                 </div>
-              ) : null}
+              </div>
             </li>
           ))}
         </ul>
@@ -1709,7 +1856,7 @@ function HouseholdTab({ user, profile }) {
   );
 }
 
-function PaymentMethodsTab({ user }) {
+function PaymentMethodsTab({ user, profile }) {
   const { t } = useTranslation("app");
   const [methods, setMethods] = useState([]);
   const [accounts, setAccounts] = useState([]);
@@ -1721,7 +1868,6 @@ function PaymentMethodsTab({ user }) {
       return;
     }
     const methodsRef = collection(db, "users", user.uid, "paymentMethods");
-    const accountsRef = collection(db, "users", user.uid, "accounts");
     const unsubscribe = onSnapshot(methodsRef, (snapshot) => {
       const data = snapshot.docs.map((docSnap) => ({
         id: docSnap.id,
@@ -1729,15 +1875,31 @@ function PaymentMethodsTab({ user }) {
       }));
       setMethods(data);
     });
-    const unsubscribeAccounts = onSnapshot(accountsRef, (snapshot) => {
-      const data = snapshot.docs.map((docSnap) => ({
-        id: docSnap.id,
-        ...docSnap.data()
-      }));
-      setAccounts(data);
-    });
     return () => unsubscribe();
   }, [user]);
+
+  useEffect(() => {
+    if (!user || !profile?.householdId) {
+      setAccounts([]);
+      return;
+    }
+    const accountsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "accounts"
+    );
+    const unsubscribeAccounts = onSnapshot(accountsRef, (snapshot) => {
+      const data = snapshot.docs
+        .map((docSnap) => ({
+          id: docSnap.id,
+          ...docSnap.data()
+        }))
+        .filter((account) => isAccountVisibleToUser(account, user.uid));
+      setAccounts(data);
+    });
+    return () => unsubscribeAccounts();
+  }, [profile?.householdId, user]);
 
   const handleAdd = async (event) => {
     event.preventDefault();
