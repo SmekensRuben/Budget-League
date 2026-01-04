@@ -255,7 +255,11 @@ export default function BudgetsPage() {
         budgetBySubcategory
       };
     });
-    return [...items].sort((a, b) => {
+    return items;
+  }, [expenseCategories, monthlySpend, subcategoryBudgetTotals]);
+
+  const sortedBudgetItems = useMemo(() => {
+    return [...budgetItems].sort((a, b) => {
       if (sortOrder === "budget") {
         const budgetDiff = b.budget - a.budget;
         if (budgetDiff !== 0) {
@@ -269,7 +273,7 @@ export default function BudgetsPage() {
       }
       return a.name.localeCompare(b.name);
     });
-  }, [expenseCategories, monthlySpend, sortOrder, subcategoryBudgetTotals]);
+  }, [budgetItems, sortOrder]);
 
   const totalBudget = useMemo(() => {
     return budgetItems.reduce((total, item) => total + item.budget, 0);
@@ -421,7 +425,7 @@ export default function BudgetsPage() {
                     {t("pages.budgets.empty")}
                   </div>
                 ) : (
-                  budgetItems.map((item) => (
+                  sortedBudgetItems.map((item) => (
                     <div
                       key={item.id}
                       className="rounded-xl border border-white/10 bg-slate-950/40 p-4"

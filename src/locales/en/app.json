@@ -194,7 +194,15 @@
     "insights": {
       "title": "Insights",
       "subtitle": "Track trends across the household.",
-      "placeholder": "Insight dashboards will appear here."
+      "summaryTitle": "Monthly estimate",
+      "summarySubtitle": "Based on projected income and planned budgets.",
+      "estimatedIncome": "Projected income",
+      "estimatedBudget": "Planned budget",
+      "estimatedRemaining": "Estimated remaining",
+      "memberEstimates": "Projected income per member",
+      "memberEmpty": "No household members available yet.",
+      "projectedIncomeLabel": "Estimated monthly income",
+      "noHousehold": "Join or create a household to view insights."
     }
   },
   "settings": {
@@ -205,6 +213,7 @@
       "categories": "Categories",
       "accounts": "Accounts",
       "household": "Household",
+      "projectedIncome": "Projected Income",
       "data": "Data",
       "rules": "Rules",
       "paymentMethods": "Payment Methods",
@@ -316,6 +325,16 @@
       "inviteAccept": "Accept",
       "inviteDecline": "Decline",
       "inviteMissing": "This invite is no longer available."
+    },
+    "projectedIncome": {
+      "title": "Projected income",
+      "subtitle": "Estimate the monthly income per household member.",
+      "monthlyIncome": "Estimated monthly income (€)",
+      "placeholder": "0.00",
+      "save": "Save projected income",
+      "saved": "Projected income updated.",
+      "noHousehold": "Join or create a household to add projected income.",
+      "noMembers": "No household members available yet."
     },
     "paymentMethods": {
       "title": "Payment methods",
