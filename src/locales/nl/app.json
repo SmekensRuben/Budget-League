@@ -97,7 +97,7 @@
         "descriptionPlaceholder": "Optionele omschrijving"
       },
       "placeholders": {
-        "merchant": "Kies een merchant",
+        "merchant": "Typ of kies een merchant",
         "category": "Kies een categorie",
         "subcategory": "Kies een subcategorie",
         "spendType": "Kies een spend type",
@@ -153,7 +153,8 @@
       "noHousehold": "Maak of word lid van een household om transacties toe te voegen.",
       "saved": "Transactie opgeslagen in je household.",
       "updated": "Transactie bijgewerkt.",
-      "deleted": "Transactie verwijderd."
+      "deleted": "Transactie verwijderd.",
+      "confirmCreateMerchant": "“{{name}}” bestaat nog niet. Wil je deze merchant aanmaken?"
     },
     "budgets": {
       "title": "Budgetten",
