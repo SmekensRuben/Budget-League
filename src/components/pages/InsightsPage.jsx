@@ -16,6 +16,18 @@ const parseAmount = (value) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const buildMemberName = (member) => {
+  if (!member) {
+    return "";
+  }
+  const fullName = [member.firstName, member.lastName].filter(Boolean).join(" ");
+  const displayName =
+    member.displayName && !member.displayName.includes("@")
+      ? member.displayName
+      : "";
+  return fullName || displayName || member.id || "";
+};
+
 export default function InsightsPage() {
   const { t } = useTranslation("app");
   const { profile } = useAuthContext();
@@ -81,27 +93,56 @@ export default function InsightsPage() {
     );
   }, [categories]);
 
-  const subcategoryBudgetTotals = useMemo(() => {
-    const totals = {};
+  const subcategoriesByParent = useMemo(() => {
+    const map = {};
     categories.forEach((category) => {
       if (!category.parentId || category.type !== "expense") {
         return;
       }
-      const current = totals[category.parentId] || 0;
-      totals[category.parentId] = current + parseAmount(category.monthlyBudget);
+      if (!map[category.parentId]) {
+        map[category.parentId] = [];
+      }
+      map[category.parentId].push({
+        id: category.id,
+        name: category.name,
+        monthlyBudget: category.monthlyBudget ?? "",
+        monthlyBudgetByMember: category.monthlyBudgetByMember || {}
+      });
     });
-    return totals;
+    return map;
   }, [categories]);
+
+  const resolveMemberBudget = (category, memberId) => {
+    const budgetByMember = category.monthlyBudgetByMember || {};
+    if (memberId) {
+      if (Object.prototype.hasOwnProperty.call(budgetByMember, memberId)) {
+        return parseAmount(budgetByMember[memberId]);
+      }
+      return parseAmount(category.monthlyBudget);
+    }
+    if (Object.keys(budgetByMember).length > 0) {
+      const memberIds = members.length
+        ? members.map((member) => member.id)
+        : Object.keys(budgetByMember);
+      return memberIds.reduce(
+        (sum, memberKey) => sum + parseAmount(budgetByMember[memberKey]),
+        0
+      );
+    }
+    return parseAmount(category.monthlyBudget);
+  };
 
   const totalBudget = useMemo(() => {
     return expenseCategories.reduce((total, category) => {
       const usesSubcategories = Boolean(category.budgetBySubcategory);
       const budget = usesSubcategories
-        ? subcategoryBudgetTotals[category.id] || 0
-        : parseAmount(category.monthlyBudget);
+        ? (subcategoriesByParent[category.id] || []).reduce((sum, sub) => {
+            return sum + resolveMemberBudget(sub);
+          }, 0)
+        : resolveMemberBudget(category);
       return total + budget;
     }, 0);
-  }, [expenseCategories, subcategoryBudgetTotals]);
+  }, [expenseCategories, subcategoriesByParent, members]);
 
   const projectedIncomeByMember = household?.projectedIncomeByMember || {};
 
@@ -115,6 +156,26 @@ export default function InsightsPage() {
   }, [household?.memberIds, projectedIncomeByMember]);
 
   const remainingEstimate = totalProjectedIncome - totalBudget;
+
+  const memberBudgetTotals = useMemo(() => {
+    if (!members.length) {
+      return {};
+    }
+    return members.reduce((acc, member) => {
+      const total = expenseCategories.reduce((sum, category) => {
+        const usesSubcategories = Boolean(category.budgetBySubcategory);
+        const budget = usesSubcategories
+          ? (subcategoriesByParent[category.id] || []).reduce(
+              (subSum, sub) => subSum + resolveMemberBudget(sub, member.id),
+              0
+            )
+          : resolveMemberBudget(category, member.id);
+        return sum + budget;
+      }, 0);
+      acc[member.id] = total;
+      return acc;
+    }, {});
+  }, [expenseCategories, members, subcategoriesByParent]);
 
   const formatCurrency = (value) => {
     const amount = Number(value) || 0;
@@ -191,13 +252,28 @@ export default function InsightsPage() {
                     className="rounded-xl border border-white/10 bg-slate-950/40 p-4"
                   >
                     <p className="text-sm font-semibold text-white">
-                      {member.displayName || member.email || member.id}
+                      {buildMemberName(member) || member.id}
                     </p>
                     <p className="text-xs text-slate-400">
                       {t("pages.insights.projectedIncomeLabel")}
                     </p>
                     <p className="mt-2 text-sm text-slate-200">
                       {formatCurrency(projectedIncomeByMember[member.id] || 0)}
+                    </p>
+                    <p className="mt-3 text-xs text-slate-400">
+                      {t("pages.insights.memberBudgetLabel")}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-200">
+                      {formatCurrency(memberBudgetTotals[member.id] || 0)}
+                    </p>
+                    <p className="mt-3 text-xs text-slate-400">
+                      {t("pages.insights.memberRemainingLabel")}
+                    </p>
+                    <p className="mt-2 text-sm text-slate-200">
+                      {formatCurrency(
+                        (projectedIncomeByMember[member.id] || 0) -
+                          (memberBudgetTotals[member.id] || 0)
+                      )}
                     </p>
                   </div>
                 ))}

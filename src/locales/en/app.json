@@ -177,8 +177,11 @@
         "budget": "Budget",
         "percent": "% spent"
       },
+      "memberFilterLabel": "Member",
+      "memberFilterAll": "All members",
       "monthlyBudget": "Monthly budget (€)",
       "budgetBySubcategory": "Allocate budgets to subcategories",
+      "memberBudgets": "Budgets per member",
       "totalBudget": "Total budget (€)",
       "budgetPlaceholder": "0.00",
       "save": "Save budget",
@@ -202,6 +205,8 @@
       "memberEstimates": "Projected income per member",
       "memberEmpty": "No household members available yet.",
       "projectedIncomeLabel": "Estimated monthly income",
+      "memberBudgetLabel": "Planned budget",
+      "memberRemainingLabel": "Estimated remaining",
       "noHousehold": "Join or create a household to view insights."
     }
   },

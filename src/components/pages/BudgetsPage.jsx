@@ -2,7 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "../shared/AppLayout";
 import { useAuthContext } from "../../contexts/AuthContext";
-import { collection, db, doc, onSnapshot, setDoc } from "../../firebaseConfig";
+import {
+  collection,
+  db,
+  doc,
+  getDoc,
+  onSnapshot,
+  updateDoc
+} from "../../firebaseConfig";
 
 const getCurrentMonthKey = () => {
   const today = new Date();
@@ -43,17 +50,35 @@ const parseAmount = (value) => {
   return Number.isNaN(parsed) ? 0 : parsed;
 };
 
+const buildMemberName = (member) => {
+  if (!member) {
+    return "";
+  }
+  const fullName = [member.firstName, member.lastName].filter(Boolean).join(" ");
+  const displayName =
+    member.displayName && !member.displayName.includes("@")
+      ? member.displayName
+      : "";
+  return fullName || displayName || member.id || "";
+};
+
+const getBudgetDraftKey = (categoryId, memberId) =>
+  memberId ? `${categoryId}::${memberId}` : categoryId;
+
 export default function BudgetsPage() {
   const { t } = useTranslation("app");
   const { profile } = useAuthContext();
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [household, setHousehold] = useState(null);
+  const [members, setMembers] = useState([]);
   const [budgetDrafts, setBudgetDrafts] = useState({});
   const [savingCategoryId, setSavingCategoryId] = useState("");
   const [statusMessage, setStatusMessage] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonthKey());
   const [sortOrder, setSortOrder] = useState("percent");
+  const [selectedMemberId, setSelectedMemberId] = useState("all");
 
   useEffect(() => {
     if (!profile?.householdId) {
@@ -98,19 +123,57 @@ export default function BudgetsPage() {
   }, [profile?.householdId]);
 
   useEffect(() => {
+    if (!profile?.householdId) {
+      setHousehold(null);
+      return;
+    }
+    const householdRef = doc(db, "households", profile.householdId);
+    const unsubscribe = onSnapshot(householdRef, (snap) => {
+      setHousehold(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+    });
+    return () => unsubscribe();
+  }, [profile?.householdId]);
+
+  useEffect(() => {
+    const fetchMembers = async () => {
+      if (!household?.memberIds?.length) {
+        setMembers([]);
+        return;
+      }
+      const memberDocs = await Promise.all(
+        household.memberIds.map((memberId) =>
+          getDoc(doc(db, "users", memberId))
+        )
+      );
+      const data = memberDocs
+        .filter((docSnap) => docSnap.exists())
+        .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
+      setMembers(data);
+    };
+    fetchMembers();
+  }, [household?.memberIds]);
+
+  useEffect(() => {
     setBudgetDrafts((prev) => {
       const next = { ...prev };
       categories.forEach((category) => {
         if (category.type !== "expense") {
           return;
         }
-        if (next[category.id] === undefined) {
-          next[category.id] = category.monthlyBudget ?? "";
+        const baseKey = getBudgetDraftKey(category.id);
+        if (next[baseKey] === undefined) {
+          next[baseKey] = category.monthlyBudget ?? "";
         }
+        members.forEach((member) => {
+          const memberKey = getBudgetDraftKey(category.id, member.id);
+          if (next[memberKey] === undefined) {
+            next[memberKey] = category.monthlyBudgetByMember?.[member.id] ?? "";
+          }
+        });
       });
       return next;
     });
-  }, [categories]);
+  }, [categories, members]);
 
   const expenseCategories = useMemo(() => {
     return categories.filter(
@@ -130,7 +193,8 @@ export default function BudgetsPage() {
       map[category.parentId].push({
         id: category.id,
         name: category.name,
-        monthlyBudget: category.monthlyBudget ?? ""
+        monthlyBudget: category.monthlyBudget ?? "",
+        monthlyBudgetByMember: category.monthlyBudgetByMember || {}
       });
     });
     Object.values(map).forEach((list) =>
@@ -198,6 +262,12 @@ export default function BudgetsPage() {
       if (transaction.type !== "expense") {
         return;
       }
+      if (
+        selectedMemberId !== "all" &&
+        transaction.paidByUserId !== selectedMemberId
+      ) {
+        return;
+      }
       if (transaction.date < startDate || transaction.date > endDate) {
         return;
       }
@@ -214,18 +284,33 @@ export default function BudgetsPage() {
       }
     });
     return totals;
-  }, [transactions, categoryNameLookup, categoryById, selectedMonth]);
+  }, [
+    transactions,
+    categoryNameLookup,
+    categoryById,
+    selectedMonth,
+    selectedMemberId
+  ]);
 
-  const subcategoryBudgetTotals = useMemo(() => {
-    return Object.entries(subcategoriesByParent).reduce((acc, [parentId, list]) => {
-      const total = list.reduce(
-        (sum, subcategory) => sum + parseAmount(subcategory.monthlyBudget),
+  const resolveMemberBudget = (category, memberId) => {
+    const budgetByMember = category.monthlyBudgetByMember || {};
+    if (memberId && memberId !== "all") {
+      if (Object.prototype.hasOwnProperty.call(budgetByMember, memberId)) {
+        return parseAmount(budgetByMember[memberId]);
+      }
+      return parseAmount(category.monthlyBudget);
+    }
+    if (Object.keys(budgetByMember).length > 0) {
+      const memberIds = members.length
+        ? members.map((member) => member.id)
+        : Object.keys(budgetByMember);
+      return memberIds.reduce(
+        (sum, memberKey) => sum + parseAmount(budgetByMember[memberKey]),
         0
       );
-      acc[parentId] = total;
-      return acc;
-    }, {});
-  }, [subcategoriesByParent]);
+    }
+    return parseAmount(category.monthlyBudget);
+  };
 
   const formatCurrency = (value) => {
     const amount = Number(value) || 0;
@@ -238,9 +323,13 @@ export default function BudgetsPage() {
   const budgetItems = useMemo(() => {
     const items = expenseCategories.map((category) => {
       const budgetBySubcategory = Boolean(category.budgetBySubcategory);
+      const subcategoryBudgetTotal = (subcategoriesByParent[category.id] || [])
+        .reduce((sum, subcategory) => {
+          return sum + resolveMemberBudget(subcategory, selectedMemberId);
+        }, 0);
       const budget = budgetBySubcategory
-        ? subcategoryBudgetTotals[category.id] || 0
-        : parseAmount(category.monthlyBudget);
+        ? subcategoryBudgetTotal
+        : resolveMemberBudget(category, selectedMemberId);
       const spent = monthlySpend[category.id] || 0;
       const fillRatio = budget > 0 ? spent / budget : 0;
       const ratio = budget > 0 ? Math.min(fillRatio, 1) : 0;
@@ -256,7 +345,13 @@ export default function BudgetsPage() {
       };
     });
     return items;
-  }, [expenseCategories, monthlySpend, subcategoryBudgetTotals]);
+  }, [
+    expenseCategories,
+    members,
+    monthlySpend,
+    subcategoriesByParent,
+    selectedMemberId
+  ]);
 
   const sortedBudgetItems = useMemo(() => {
     return [...budgetItems].sort((a, b) => {
@@ -287,19 +382,29 @@ export default function BudgetsPage() {
   const totalRatio = totalBudget > 0 ? Math.min(totalFillRatio, 1) : 0;
   const isOverTotalBudget = totalBudget > 0 && totalSpent > totalBudget;
 
-  const handleBudgetSave = async (categoryId) => {
+  const handleBudgetSave = async (categoryId, memberId) => {
     if (!profile?.householdId) {
       return;
     }
-    setSavingCategoryId(categoryId);
+    const savingKey = getBudgetDraftKey(categoryId, memberId);
+    setSavingCategoryId(savingKey);
     setStatusMessage("");
-    const rawValue = budgetDrafts[categoryId];
+    const rawValue = budgetDrafts[savingKey];
     const normalized = parseAmount(rawValue);
-    await setDoc(
-      doc(db, "households", profile.householdId, "categories", categoryId),
-      { monthlyBudget: normalized },
-      { merge: true }
+    const categoryRef = doc(
+      db,
+      "households",
+      profile.householdId,
+      "categories",
+      categoryId
     );
+    if (memberId) {
+      await updateDoc(categoryRef, {
+        [`monthlyBudgetByMember.${memberId}`]: normalized
+      });
+    } else {
+      await updateDoc(categoryRef, { monthlyBudget: normalized });
+    }
     setSavingCategoryId("");
     setStatusMessage(t("pages.budgets.saved"));
   };
@@ -309,13 +414,34 @@ export default function BudgetsPage() {
       return;
     }
     setStatusMessage("");
-    await setDoc(
+    await updateDoc(
       doc(db, "households", profile.householdId, "categories", categoryId),
-      { budgetBySubcategory: useSubcategories },
-      { merge: true }
+      { budgetBySubcategory: useSubcategories }
     );
     setStatusMessage(t("pages.budgets.saved"));
   };
+
+  const memberOptions = useMemo(() => {
+    const options = [
+      { id: "all", label: t("pages.budgets.memberFilterAll") }
+    ];
+    members.forEach((member) => {
+      options.push({
+        id: member.id,
+        label: buildMemberName(member) || member.id
+      });
+    });
+    return options;
+  }, [members, t]);
+
+  useEffect(() => {
+    if (
+      selectedMemberId !== "all" &&
+      !members.find((member) => member.id === selectedMemberId)
+    ) {
+      setSelectedMemberId("all");
+    }
+  }, [members, selectedMemberId]);
 
   return (
     <AppLayout
@@ -369,6 +495,20 @@ export default function BudgetsPage() {
                     <option value="percent">
                       {t("pages.budgets.sortOptions.percent")}
                     </option>
+                  </select>
+                </label>
+                <label className="flex flex-col text-xs text-slate-400">
+                  {t("pages.budgets.memberFilterLabel")}
+                  <select
+                    value={selectedMemberId}
+                    onChange={(event) => setSelectedMemberId(event.target.value)}
+                    className="mt-2 min-w-[160px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white"
+                  >
+                    {memberOptions.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.label}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <div className="flex rounded-full border border-white/10 bg-slate-950/60 p-1 text-xs text-slate-200">
@@ -534,7 +674,9 @@ export default function BudgetsPage() {
                               <button
                                 type="button"
                                 onClick={() => handleBudgetSave(item.id)}
-                                disabled={savingCategoryId === item.id}
+                                disabled={
+                                  savingCategoryId === getBudgetDraftKey(item.id)
+                                }
                                 className="mt-6 rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
                               >
                                 {t("pages.budgets.save")}
@@ -543,6 +685,65 @@ export default function BudgetsPage() {
                           ) : null}
                         </div>
                       </div>
+                      {!item.budgetBySubcategory && members.length > 0 ? (
+                        <div className="mt-4">
+                          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                            {t("pages.budgets.memberBudgets")}
+                          </p>
+                          <div className="mt-3 grid gap-3 md:grid-cols-2">
+                            {members.map((member) => {
+                              const memberKey = getBudgetDraftKey(
+                                item.id,
+                                member.id
+                              );
+                              const memberName =
+                                buildMemberName(member) || member.id;
+                              return (
+                                <div
+                                  key={member.id}
+                                  className="rounded-xl border border-white/10 bg-slate-950/60 p-3"
+                                >
+                                  <div className="flex flex-wrap items-end justify-between gap-3">
+                                    <label className="flex flex-col gap-2 text-sm text-white">
+                                      <span className="text-xs text-slate-300">
+                                        {memberName}
+                                      </span>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        value={budgetDrafts[memberKey]}
+                                        onChange={(event) =>
+                                          setBudgetDrafts((prev) => ({
+                                            ...prev,
+                                            [memberKey]: event.target.value
+                                          }))
+                                        }
+                                        className="min-w-[140px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                                        placeholder={t(
+                                          "pages.budgets.budgetPlaceholder"
+                                        )}
+                                      />
+                                    </label>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleBudgetSave(item.id, member.id)
+                                      }
+                                      disabled={
+                                        savingCategoryId ===
+                                        getBudgetDraftKey(item.id, member.id)
+                                      }
+                                      className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
+                                    >
+                                      {t("pages.budgets.save")}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
                       {item.budgetBySubcategory &&
                       subcategoriesByParent[item.id]?.length ? (
                         <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -573,12 +774,75 @@ export default function BudgetsPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleBudgetSave(subcategory.id)}
-                                  disabled={savingCategoryId === subcategory.id}
+                                  disabled={
+                                    savingCategoryId ===
+                                    getBudgetDraftKey(subcategory.id)
+                                  }
                                   className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
                                 >
                                   {t("pages.budgets.save")}
                                 </button>
                               </div>
+                              {members.length > 0 ? (
+                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                  {members.map((member) => {
+                                    const memberKey = getBudgetDraftKey(
+                                      subcategory.id,
+                                      member.id
+                                    );
+                                    const memberName =
+                                      buildMemberName(member) || member.id;
+                                    return (
+                                      <div
+                                        key={member.id}
+                                        className="rounded-xl border border-white/10 bg-slate-950/60 p-3"
+                                      >
+                                        <div className="flex flex-wrap items-end justify-between gap-3">
+                                          <label className="flex flex-col gap-2 text-sm text-white">
+                                            <span className="text-xs text-slate-300">
+                                              {memberName}
+                                            </span>
+                                            <input
+                                              type="number"
+                                              step="0.01"
+                                              value={budgetDrafts[memberKey]}
+                                              onChange={(event) =>
+                                                setBudgetDrafts((prev) => ({
+                                                  ...prev,
+                                                  [memberKey]: event.target.value
+                                                }))
+                                              }
+                                              className="min-w-[140px] rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+                                              placeholder={t(
+                                                "pages.budgets.budgetPlaceholder"
+                                              )}
+                                            />
+                                          </label>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              handleBudgetSave(
+                                                subcategory.id,
+                                                member.id
+                                              )
+                                            }
+                                            disabled={
+                                              savingCategoryId ===
+                                              getBudgetDraftKey(
+                                                subcategory.id,
+                                                member.id
+                                              )
+                                            }
+                                            className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400 disabled:cursor-not-allowed disabled:bg-amber-500/40"
+                                          >
+                                            {t("pages.budgets.save")}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
                             </div>
                           ))}
                         </div>
