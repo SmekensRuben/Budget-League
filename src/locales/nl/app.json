@@ -217,6 +217,11 @@
         "irregular": "Onregelmatig"
       },
       "add": "Categorie toevoegen",
+      "copy": "Mijn categorieën kopiëren",
+      "copyLoading": "Bezig met kopiëren...",
+      "copySuccess": "{{count}} categorieën gekopieerd naar de household.",
+      "copyEmpty": "Geen categorieën gevonden in je account.",
+      "copyError": "Kan categorieën nu niet kopiëren.",
       "edit": "Bewerken",
       "delete": "Verwijderen",
       "save": "Opslaan",

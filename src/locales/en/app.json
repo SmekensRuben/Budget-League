@@ -217,6 +217,11 @@
         "irregular": "Irregular"
       },
       "add": "Add category",
+      "copy": "Copy my categories",
+      "copyLoading": "Copying...",
+      "copySuccess": "Copied {{count}} categories to the household.",
+      "copyEmpty": "No categories found in your account.",
+      "copyError": "Unable to copy categories right now.",
       "edit": "Edit",
       "delete": "Delete",
       "save": "Save",
