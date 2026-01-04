@@ -173,13 +173,12 @@ export default function TransactionForm({
             />
           </label>
           <label className="flex flex-col gap-2 text-sm md:col-span-2">
-            {t("pages.transactions.fields.merchant")}*
+            {t("pages.transactions.fields.merchant")}
             <select
               name="merchant"
               value={formState.merchant}
               onChange={handleChange}
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-              required
               disabled={disabled}
             >
               <option value="">{t("pages.transactions.placeholders.merchant")}</option>
