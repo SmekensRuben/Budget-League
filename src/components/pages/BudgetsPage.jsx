@@ -116,6 +116,21 @@ export default function BudgetsPage() {
     );
   }, [categories]);
 
+  const subcategoriesByParent = useMemo(() => {
+    const map = {};
+    categories.forEach((category) => {
+      if (!category.parentId || category.type !== "expense") {
+        return;
+      }
+      if (!map[category.parentId]) {
+        map[category.parentId] = [];
+      }
+      map[category.parentId].push(category.name);
+    });
+    Object.values(map).forEach((list) => list.sort((a, b) => a.localeCompare(b)));
+    return map;
+  }, [categories]);
+
   const categoryNameLookup = useMemo(() => {
     return expenseCategories.reduce((acc, category) => {
       acc[category.name] = category.id;
@@ -395,6 +410,18 @@ export default function BudgetsPage() {
                               budget: formatCurrency(item.budget)
                             })}
                           </p>
+                          {subcategoriesByParent[item.id]?.length ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {subcategoriesByParent[item.id].map((name) => (
+                                <span
+                                  key={name}
+                                  className="rounded-full bg-slate-800/80 px-2.5 py-1 text-[11px] font-semibold text-slate-200"
+                                >
+                                  {name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
                         </div>
                         <div className="flex flex-wrap items-center gap-3">
                           <label className="flex flex-col gap-2 text-sm text-white">
