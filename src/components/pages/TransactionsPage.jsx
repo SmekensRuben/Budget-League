@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import AppLayout from "../shared/AppLayout";
 import {
+  addDoc,
   collection,
   deleteDoc,
   doc,
@@ -189,6 +190,26 @@ export default function TransactionsPage() {
     if (!editingTransactionId) {
       return;
     }
+
+    const trimmedMerchant = formState.merchant.trim();
+    const merchantExists = merchants.some(
+      (merchant) =>
+        String(merchant.name || "").toLowerCase() === trimmedMerchant.toLowerCase()
+    );
+    if (trimmedMerchant && !merchantExists) {
+      const shouldCreate = window.confirm(
+        t("pages.transactions.confirmCreateMerchant", { name: trimmedMerchant })
+      );
+      if (shouldCreate) {
+        await addDoc(
+          collection(db, "households", profile.householdId, "merchants"),
+          {
+            name: trimmedMerchant,
+            createdAt: serverTimestamp()
+          }
+        );
+      }
+    }
     const transactionRef = doc(
       db,
       "households",
@@ -230,9 +251,7 @@ export default function TransactionsPage() {
     setFormState({
       ...buildDefaultFormState({ profile, user }),
       ...transaction,
-      merchant: merchants.some((item) => item.name === transaction.merchant)
-        ? transaction.merchant
-        : "",
+      merchant: transaction.merchant || "",
       categoryId: matchedCategory?.id || "",
       category: matchedCategory?.name || transaction.category || "",
       subcategoryId: matchedSubcategory?.id || "",

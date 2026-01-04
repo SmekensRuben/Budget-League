@@ -2,7 +2,14 @@ import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "../shared/AppLayout";
 import { useAuthContext } from "../../contexts/AuthContext";
-import { collection, db, doc, serverTimestamp, setDoc } from "../../firebaseConfig";
+import {
+  addDoc,
+  collection,
+  db,
+  doc,
+  serverTimestamp,
+  setDoc
+} from "../../firebaseConfig";
 import TransactionForm from "../transactions/TransactionForm";
 import useTransactionData from "../transactions/useTransactionData";
 import { buildDefaultFormState } from "../transactions/transactionFormState";
@@ -78,6 +85,26 @@ export default function AddTransactionPage() {
     if (!profile?.householdId) {
       setStatusMessage(t("pages.transactions.noHousehold"));
       return;
+    }
+
+    const trimmedMerchant = formState.merchant.trim();
+    const merchantExists = merchants.some(
+      (merchant) =>
+        String(merchant.name || "").toLowerCase() === trimmedMerchant.toLowerCase()
+    );
+    if (trimmedMerchant && !merchantExists) {
+      const shouldCreate = window.confirm(
+        t("pages.transactions.confirmCreateMerchant", { name: trimmedMerchant })
+      );
+      if (shouldCreate) {
+        await addDoc(
+          collection(db, "households", profile.householdId, "merchants"),
+          {
+            name: trimmedMerchant,
+            createdAt: serverTimestamp()
+          }
+        );
+      }
     }
 
     const transactionRef = doc(

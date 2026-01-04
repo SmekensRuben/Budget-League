@@ -97,7 +97,7 @@
         "descriptionPlaceholder": "Optional description"
       },
       "placeholders": {
-        "merchant": "Select a merchant",
+        "merchant": "Type or select a merchant",
         "category": "Select a category",
         "subcategory": "Select a subcategory",
         "spendType": "Select a spend type",
@@ -153,7 +153,8 @@
       "noHousehold": "Join or create a household before adding transactions.",
       "saved": "Transaction saved in your household.",
       "updated": "Transaction updated.",
-      "deleted": "Transaction deleted."
+      "deleted": "Transaction deleted.",
+      "confirmCreateMerchant": "“{{name}}” does not exist yet. Create this merchant?"
     },
     "budgets": {
       "title": "Budgets",

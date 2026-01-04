@@ -174,20 +174,23 @@ export default function TransactionForm({
           </label>
           <label className="flex flex-col gap-2 text-sm md:col-span-2">
             {t("pages.transactions.fields.merchant")}
-            <select
+            <input
+              type="text"
               name="merchant"
               value={formState.merchant}
               onChange={handleChange}
+              list="merchant-options"
               className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+              placeholder={t("pages.transactions.placeholders.merchant")}
               disabled={disabled}
-            >
-              <option value="">{t("pages.transactions.placeholders.merchant")}</option>
+            />
+            <datalist id="merchant-options">
               {merchants.map((merchant) => (
                 <option key={merchant.id} value={merchant.name}>
                   {merchant.name}
                 </option>
               ))}
-            </select>
+            </datalist>
           </label>
         </div>
       </section>
