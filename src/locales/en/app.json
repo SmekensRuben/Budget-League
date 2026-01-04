@@ -217,6 +217,8 @@
         "irregular": "Irregular"
       },
       "add": "Add category",
+      "expand": "Show subcategories",
+      "collapse": "Hide subcategories",
       "edit": "Edit",
       "delete": "Delete",
       "save": "Save",

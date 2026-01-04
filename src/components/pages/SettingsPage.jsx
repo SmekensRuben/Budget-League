@@ -272,6 +272,7 @@ function CategoriesTab({ user, profile }) {
     spendType: "essential",
     incomeStability: "regular"
   });
+  const [expandedCategories, setExpandedCategories] = useState({});
   const [editingCategoryId, setEditingCategoryId] = useState("");
   const [editFormState, setEditFormState] = useState({
     name: "",
@@ -305,6 +306,18 @@ function CategoriesTab({ user, profile }) {
   }, [profile?.householdId, user]);
 
   const topLevelCategories = categories.filter((category) => !category.parentId);
+
+  useEffect(() => {
+    setExpandedCategories((prev) => {
+      const next = { ...prev };
+      topLevelCategories.forEach((category) => {
+        if (next[category.id] === undefined) {
+          next[category.id] = false;
+        }
+      });
+      return next;
+    });
+  }, [topLevelCategories]);
 
   const handleAdd = async (event) => {
     event.preventDefault();
@@ -524,6 +537,7 @@ function CategoriesTab({ user, profile }) {
               (item) => item.parentId === category.id
             );
             const isEditing = editingCategoryId === category.id;
+            const isExpanded = Boolean(expandedCategories[category.id]);
             return (
               <div
                 key={category.id}
@@ -537,6 +551,22 @@ function CategoriesTab({ user, profile }) {
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
+                    {subcategories.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedCategories((prev) => ({
+                            ...prev,
+                            [category.id]: !isExpanded
+                          }))
+                        }
+                        className="rounded-lg border border-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
+                      >
+                        {isExpanded
+                          ? t("settings.categories.collapse")
+                          : t("settings.categories.expand")}
+                      </button>
+                    ) : null}
                     <button
                       type="button"
                       onClick={() => handleEditStart(category)}
@@ -665,160 +695,165 @@ function CategoriesTab({ user, profile }) {
                 ) : null}
                 {!isEditing ? (
                   subcategories.length > 0 ? (
-                    <ul className="mt-3 space-y-2 text-sm text-slate-300">
-                      {subcategories.map((sub) => {
-                        const isEditingSub = editingCategoryId === sub.id;
-                        return (
-                          <li key={sub.id} className="rounded-lg bg-slate-950/40 p-3">
-                            {isEditingSub ? (
-                              <form
-                                className="grid gap-3 md:grid-cols-4"
-                                onSubmit={handleEditSave}
-                              >
-                                <input
-                                  value={editFormState.name}
-                                  onChange={(event) =>
-                                    setEditFormState((prev) => ({
-                                      ...prev,
-                                      name: event.target.value
-                                    }))
-                                  }
-                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                                />
-                                <select
-                                  value={editFormState.type}
-                                  onChange={(event) =>
-                                    setEditFormState((prev) => ({
-                                      ...prev,
-                                      type: event.target.value,
-                                      spendType: "essential",
-                                      incomeStability: "regular"
-                                    }))
-                                  }
-                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                    isExpanded ? (
+                      <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                        {subcategories.map((sub) => {
+                          const isEditingSub = editingCategoryId === sub.id;
+                          return (
+                            <li
+                              key={sub.id}
+                              className="rounded-lg bg-slate-950/40 p-3"
+                            >
+                              {isEditingSub ? (
+                                <form
+                                  className="grid gap-3 md:grid-cols-4"
+                                  onSubmit={handleEditSave}
                                 >
-                                  <option value="expense">
-                                    {t("settings.categories.types.expense")}
-                                  </option>
-                                  <option value="income">
-                                    {t("settings.categories.types.income")}
-                                  </option>
-                                </select>
-                                <select
-                                  value={editFormState.parentId}
-                                  onChange={(event) =>
-                                    setEditFormState((prev) => ({
-                                      ...prev,
-                                      parentId: event.target.value
-                                    }))
-                                  }
-                                  className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
-                                >
-                                  {topLevelCategories.map((item) => (
-                                    <option key={item.id} value={item.id}>
-                                      {item.name}
-                                    </option>
-                                  ))}
-                                </select>
-                                {editFormState.type === "expense" ? (
-                                  <select
-                                    value={editFormState.spendType}
+                                  <input
+                                    value={editFormState.name}
                                     onChange={(event) =>
                                       setEditFormState((prev) => ({
                                         ...prev,
-                                        spendType: event.target.value
+                                        name: event.target.value
+                                      }))
+                                    }
+                                    className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                  />
+                                  <select
+                                    value={editFormState.type}
+                                    onChange={(event) =>
+                                      setEditFormState((prev) => ({
+                                        ...prev,
+                                        type: event.target.value,
+                                        spendType: "essential",
+                                        incomeStability: "regular"
                                       }))
                                     }
                                     className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
                                   >
-                                    <option value="essential">
-                                      {t("settings.categories.spendTypes.essential")}
+                                    <option value="expense">
+                                      {t("settings.categories.types.expense")}
                                     </option>
-                                    <option value="discretionary">
-                                      {t("settings.categories.spendTypes.discretionary")}
+                                    <option value="income">
+                                      {t("settings.categories.types.income")}
                                     </option>
                                   </select>
-                                ) : (
                                   <select
-                                    value={editFormState.incomeStability}
+                                    value={editFormState.parentId}
                                     onChange={(event) =>
                                       setEditFormState((prev) => ({
                                         ...prev,
-                                        incomeStability: event.target.value
+                                        parentId: event.target.value
                                       }))
                                     }
                                     className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
                                   >
-                                    <option value="regular">
-                                      {t(
-                                        "settings.categories.incomeStabilities.regular"
-                                      )}
-                                    </option>
-                                    <option value="irregular">
-                                      {t(
-                                        "settings.categories.incomeStabilities.irregular"
-                                      )}
-                                    </option>
+                                    {topLevelCategories.map((item) => (
+                                      <option key={item.id} value={item.id}>
+                                        {item.name}
+                                      </option>
+                                    ))}
                                   </select>
-                                )}
-                                <div className="flex flex-wrap items-center gap-2 md:col-span-4">
-                                  <button
-                                    type="submit"
-                                    className="rounded-lg bg-amber-500/90 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-amber-400"
-                                  >
-                                    {t("settings.categories.save")}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={handleEditCancel}
-                                    className="rounded-lg border border-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
-                                  >
-                                    {t("settings.categories.cancel")}
-                                  </button>
-                                </div>
-                              </form>
-                            ) : (
-                              <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="flex flex-wrap items-center gap-3">
-                                  <span className="font-semibold text-white">
-                                    {sub.name}
-                                  </span>
-                                  <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                                    {sub.type === "income"
-                                      ? t(
-                                          `settings.categories.incomeStabilities.${
-                                            sub.incomeStability || "regular"
-                                          }`
-                                        )
-                                      : t(
-                                          `settings.categories.spendTypes.${
-                                            sub.spendType || "essential"
-                                          }`
+                                  {editFormState.type === "expense" ? (
+                                    <select
+                                      value={editFormState.spendType}
+                                      onChange={(event) =>
+                                        setEditFormState((prev) => ({
+                                          ...prev,
+                                          spendType: event.target.value
+                                        }))
+                                      }
+                                      className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                    >
+                                      <option value="essential">
+                                        {t("settings.categories.spendTypes.essential")}
+                                      </option>
+                                      <option value="discretionary">
+                                        {t("settings.categories.spendTypes.discretionary")}
+                                      </option>
+                                    </select>
+                                  ) : (
+                                    <select
+                                      value={editFormState.incomeStability}
+                                      onChange={(event) =>
+                                        setEditFormState((prev) => ({
+                                          ...prev,
+                                          incomeStability: event.target.value
+                                        }))
+                                      }
+                                      className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
+                                    >
+                                      <option value="regular">
+                                        {t(
+                                          "settings.categories.incomeStabilities.regular"
                                         )}
-                                  </span>
+                                      </option>
+                                      <option value="irregular">
+                                        {t(
+                                          "settings.categories.incomeStabilities.irregular"
+                                        )}
+                                      </option>
+                                    </select>
+                                  )}
+                                  <div className="flex flex-wrap items-center gap-2 md:col-span-4">
+                                    <button
+                                      type="submit"
+                                      className="rounded-lg bg-amber-500/90 px-3 py-1 text-xs font-semibold text-slate-950 transition hover:bg-amber-400"
+                                    >
+                                      {t("settings.categories.save")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={handleEditCancel}
+                                      className="rounded-lg border border-white/10 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/10"
+                                    >
+                                      {t("settings.categories.cancel")}
+                                    </button>
+                                  </div>
+                                </form>
+                              ) : (
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <span className="font-semibold text-white">
+                                      {sub.name}
+                                    </span>
+                                    <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
+                                      {sub.type === "income"
+                                        ? t(
+                                            `settings.categories.incomeStabilities.${
+                                              sub.incomeStability || "regular"
+                                            }`
+                                          )
+                                        : t(
+                                            `settings.categories.spendTypes.${
+                                              sub.spendType || "essential"
+                                            }`
+                                          )}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleEditStart(sub)}
+                                      className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                                    >
+                                      {t("settings.categories.edit")}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDelete(sub)}
+                                      className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
+                                    >
+                                      {t("settings.categories.delete")}
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleEditStart(sub)}
-                                    className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
-                                  >
-                                    {t("settings.categories.edit")}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDelete(sub)}
-                                    className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
-                                  >
-                                    {t("settings.categories.delete")}
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : null
                   ) : (
                     <p className="mt-3 text-sm text-slate-500">
                       {t("settings.categories.noSubcategories")}
@@ -1970,12 +2005,22 @@ function PaymentMethodsTab({ user, profile }) {
     setName("");
   };
 
+  const ownedAccounts = useMemo(() => {
+    return accounts.filter((account) =>
+      getAccountOwnerIds(account).includes(user?.uid)
+    );
+  }, [accounts, user?.uid]);
+
+  const ownedAccountIds = useMemo(() => {
+    return new Set(ownedAccounts.map((account) => account.id));
+  }, [ownedAccounts]);
+
   const accountLookup = useMemo(() => {
-    return accounts.reduce((acc, account) => {
+    return ownedAccounts.reduce((acc, account) => {
       acc[account.id] = account.name;
       return acc;
     }, {});
-  }, [accounts]);
+  }, [ownedAccounts]);
 
   const sortedMethods = useMemo(() => {
     return [...methods].sort((a, b) => {
@@ -1990,6 +2035,9 @@ function PaymentMethodsTab({ user, profile }) {
 
   const handleUpdateAccount = async (methodId, nextAccountId) => {
     if (!user) {
+      return;
+    }
+    if (nextAccountId && !ownedAccountIds.has(nextAccountId)) {
       return;
     }
     const nextMap = {
@@ -2054,7 +2102,7 @@ function PaymentMethodsTab({ user, profile }) {
                 className="rounded-lg border border-white/10 bg-slate-950/60 px-3 py-2 text-xs text-white"
               >
                 <option value="">{t("settings.paymentMethods.accountPlaceholder")}</option>
-                {accounts.map((account) => (
+                {ownedAccounts.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
                   </option>
