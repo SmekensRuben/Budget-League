@@ -70,6 +70,7 @@ export default function BudgetsPage() {
   const { profile } = useAuthContext();
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [household, setHousehold] = useState(null);
   const [members, setMembers] = useState([]);
   const [budgetDrafts, setBudgetDrafts] = useState({});
@@ -118,6 +119,27 @@ export default function BudgetsPage() {
         ...docSnap.data()
       }));
       setTransactions(data);
+    });
+    return () => unsubscribe();
+  }, [profile?.householdId]);
+
+  useEffect(() => {
+    if (!profile?.householdId) {
+      setAccounts([]);
+      return;
+    }
+    const accountsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "accounts"
+    );
+    const unsubscribe = onSnapshot(accountsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setAccounts(data);
     });
     return () => unsubscribe();
   }, [profile?.householdId]);
@@ -255,11 +277,17 @@ export default function BudgetsPage() {
 
   const monthlySpend = useMemo(() => {
     const totals = {};
+    const fundAccountIds = new Set(
+      accounts.filter((account) => account.isFund).map((account) => account.id)
+    );
     const { startDate, endDate } = selectedMonth
       ? getMonthRange(selectedMonth)
       : getCurrentMonthRange();
     transactions.forEach((transaction) => {
       if (transaction.type !== "expense") {
+        return;
+      }
+      if (transaction.accountId && fundAccountIds.has(transaction.accountId)) {
         return;
       }
       if (
@@ -285,6 +313,7 @@ export default function BudgetsPage() {
     });
     return totals;
   }, [
+    accounts,
     transactions,
     categoryNameLookup,
     categoryById,

@@ -936,13 +936,15 @@ function AccountsTab({ user, profile }) {
   const [formState, setFormState] = useState({
     name: "",
     openingBalance: "",
-    openingBalanceDate: ""
+    openingBalanceDate: "",
+    isFund: false
   });
   const [editingAccountId, setEditingAccountId] = useState(null);
   const [editState, setEditState] = useState({
     name: "",
     openingBalance: "",
-    openingBalanceDate: ""
+    openingBalanceDate: "",
+    isFund: false
   });
   const [ownerSelections, setOwnerSelections] = useState({});
   const [visibilitySelections, setVisibilitySelections] = useState({});
@@ -1057,6 +1059,7 @@ function AccountsTab({ user, profile }) {
         name: formState.name.trim(),
         openingBalance: Number(formState.openingBalance) || 0,
         openingBalanceDate: formState.openingBalanceDate || null,
+        isFund: Boolean(formState.isFund),
         ownerIds: [user.uid],
         visibleToMemberIds: [user.uid],
         createdAt: serverTimestamp()
@@ -1065,7 +1068,8 @@ function AccountsTab({ user, profile }) {
     setFormState({
       name: "",
       openingBalance: "",
-      openingBalanceDate: ""
+      openingBalanceDate: "",
+      isFund: false
     });
   };
 
@@ -1077,7 +1081,8 @@ function AccountsTab({ user, profile }) {
         account.openingBalance !== undefined
           ? String(account.openingBalance)
           : "",
-      openingBalanceDate: account.openingBalanceDate || ""
+      openingBalanceDate: account.openingBalanceDate || "",
+      isFund: Boolean(account.isFund)
     });
   };
 
@@ -1086,7 +1091,8 @@ function AccountsTab({ user, profile }) {
     setEditState({
       name: "",
       openingBalance: "",
-      openingBalanceDate: ""
+      openingBalanceDate: "",
+      isFund: false
     });
   };
 
@@ -1103,7 +1109,8 @@ function AccountsTab({ user, profile }) {
       {
         name: editState.name.trim(),
         openingBalance: Number(editState.openingBalance) || 0,
-        openingBalanceDate: editState.openingBalanceDate || null
+        openingBalanceDate: editState.openingBalanceDate || null,
+        isFund: Boolean(editState.isFund)
       }
     );
     handleEditCancel();
@@ -1278,6 +1285,17 @@ function AccountsTab({ user, profile }) {
         >
           {t("settings.accounts.add")}
         </button>
+        <label className="flex items-center gap-2 text-xs text-slate-300 md:col-span-4">
+          <input
+            type="checkbox"
+            checked={Boolean(formState.isFund)}
+            onChange={(event) =>
+              setFormState((prev) => ({ ...prev, isFund: event.target.checked }))
+            }
+            className="h-4 w-4 rounded border-white/20 bg-slate-950/60 text-amber-400 focus:ring-amber-400"
+          />
+          {t("settings.accounts.fundLabel")}
+        </label>
       </form>
 
       {accounts.length === 0 ? (
@@ -1290,7 +1308,14 @@ function AccountsTab({ user, profile }) {
               className="rounded-xl border border-white/10 bg-slate-950/40 p-3"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-semibold text-white">{account.name}</span>
+                <span className="flex items-center gap-2 font-semibold text-white">
+                  {account.name}
+                  {account.isFund ? (
+                    <span className="rounded-full border border-emerald-400/40 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-200">
+                      {t("settings.accounts.fundBadge")}
+                    </span>
+                  ) : null}
+                </span>
                 {isAccountOwner(account) ? (
                   <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
                     <button
@@ -1363,6 +1388,20 @@ function AccountsTab({ user, profile }) {
                       {t("settings.accounts.cancel")}
                     </button>
                   </div>
+                  <label className="flex items-center gap-2 text-xs text-slate-300 md:col-span-4">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(editState.isFund)}
+                      onChange={(event) =>
+                        setEditState((prev) => ({
+                          ...prev,
+                          isFund: event.target.checked
+                        }))
+                      }
+                      className="h-4 w-4 rounded border-white/20 bg-slate-950/60 text-amber-400 focus:ring-amber-400"
+                    />
+                    {t("settings.accounts.fundLabel")}
+                  </label>
                 </div>
               ) : (
                 <>

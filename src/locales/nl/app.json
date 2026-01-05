@@ -136,6 +136,7 @@
         "update": "Transactie bijwerken",
         "reset": "Formulier leegmaken",
         "add": "Transactie toevoegen",
+        "addTransfer": "Overboeking toevoegen",
         "edit": "Bewerken",
         "delete": "Verwijderen",
         "toggleForm": "Transactieformulier tonen"
@@ -283,6 +284,8 @@
       "openingBalanceLabel": "Beginbalans",
       "openingBalanceValue": "{{amount}}",
       "currentBalanceValue": "Huidige balans: {{amount}}",
+      "fundLabel": "Spaarpot (niet meenemen in budgetten)",
+      "fundBadge": "Spaarpot",
       "edit": "Bewerken",
       "delete": "Verwijderen",
       "save": "Opslaan",

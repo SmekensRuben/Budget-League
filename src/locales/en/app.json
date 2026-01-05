@@ -136,6 +136,7 @@
         "update": "Update transaction",
         "reset": "Reset form",
         "add": "Add transaction",
+        "addTransfer": "Add transfer",
         "edit": "Edit",
         "delete": "Delete",
         "toggleForm": "Toggle transaction form"
@@ -283,6 +284,8 @@
       "openingBalanceLabel": "Opening balance",
       "openingBalanceValue": "{{amount}}",
       "currentBalanceValue": "Current balance: {{amount}}",
+      "fundLabel": "Fund account (exclude from budgets)",
+      "fundBadge": "Fund",
       "edit": "Edit",
       "delete": "Delete",
       "save": "Save",

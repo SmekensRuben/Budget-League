@@ -1,4 +1,4 @@
-export const buildDefaultFormState = ({ profile, user }) => ({
+export const buildDefaultFormState = ({ profile, user, type = "expense" }) => ({
   date: "",
   amount: "",
   currency: profile?.currency || "EUR",
@@ -16,5 +16,5 @@ export const buildDefaultFormState = ({ profile, user }) => ({
   fromAccountId: "",
   toAccountId: "",
   paidByUserId: user?.uid || "",
-  type: "expense"
+  type
 });
