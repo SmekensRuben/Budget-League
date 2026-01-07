@@ -325,12 +325,20 @@ export default function TransactionsPage() {
                 {t("pages.transactions.edit.subtitle")}
               </p>
             </div>
-            <Link
-              to="/transactions/new"
-              className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
-            >
-              {t("pages.transactions.actions.add")}
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                to="/transactions/new"
+                className="rounded-xl bg-amber-500/90 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-amber-400"
+              >
+                {t("pages.transactions.actions.add")}
+              </Link>
+              <Link
+                to="/transactions/new?type=transfer"
+                className="rounded-xl border border-amber-400/40 px-4 py-2 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/20"
+              >
+                {t("pages.transactions.actions.addTransfer")}
+              </Link>
+            </div>
           </div>
 
           {editingTransactionId ? (

@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "react-router-dom";
 import AppLayout from "../shared/AppLayout";
 import { useAuthContext } from "../../contexts/AuthContext";
 import {
@@ -28,18 +29,25 @@ const buildMemberName = (member) => {
 
 export default function AddTransactionPage() {
   const { t } = useTranslation("app");
+  const location = useLocation();
   const { user, profile } = useAuthContext();
   const { categories, paymentMethods, accounts, merchants, members } =
     useTransactionData({ user, profile });
 
-  const [formState, setFormState] = useState(() =>
-    buildDefaultFormState({ profile, user })
-  );
+  const requestedType = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get("type");
+  }, [location.search]);
+  const defaultType = requestedType === "transfer" ? "transfer" : "expense";
+  const buildInitialState = () =>
+    buildDefaultFormState({ profile, user, type: defaultType });
+
+  const [formState, setFormState] = useState(buildInitialState);
   const [statusMessage, setStatusMessage] = useState("");
 
   useEffect(() => {
-    setFormState(buildDefaultFormState({ profile, user }));
-  }, [profile, user]);
+    setFormState(buildInitialState());
+  }, [profile, user, defaultType]);
 
   const paidByOptions = useMemo(() => {
     if (members.length > 0) {
@@ -84,7 +92,7 @@ export default function AddTransactionPage() {
   const isFormValid = requiredFields.every((field) => String(formState[field]).trim());
 
   const handleReset = () => {
-    setFormState(buildDefaultFormState({ profile, user }));
+    setFormState(buildInitialState());
     setStatusMessage("");
   };
 
@@ -131,7 +139,7 @@ export default function AddTransactionPage() {
 
     await setDoc(transactionRef, { ...payload, createdAt: serverTimestamp() });
     setStatusMessage(t("pages.transactions.saved"));
-    setFormState(buildDefaultFormState({ profile, user }));
+    setFormState(buildInitialState());
   };
 
   return (
