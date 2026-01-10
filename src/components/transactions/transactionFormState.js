@@ -15,6 +15,7 @@ export const buildDefaultFormState = ({ profile, user, type = "expense" }) => ({
   accountId: "",
   fromAccountId: "",
   toAccountId: "",
+  allocation: false,
   paidByUserId: user?.uid || "",
   type
 });

@@ -284,10 +284,16 @@ export default function BudgetsPage() {
       ? getMonthRange(selectedMonth)
       : getCurrentMonthRange();
     transactions.forEach((transaction) => {
-      if (transaction.type !== "expense") {
+      const isAllocationTransfer =
+        transaction.type === "transfer" && transaction.allocation;
+      if (transaction.type !== "expense" && !isAllocationTransfer) {
         return;
       }
-      if (transaction.accountId && fundAccountIds.has(transaction.accountId)) {
+      if (
+        transaction.type === "expense" &&
+        transaction.accountId &&
+        fundAccountIds.has(transaction.accountId)
+      ) {
         return;
       }
       if (

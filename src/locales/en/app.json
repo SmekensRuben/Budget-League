@@ -95,6 +95,7 @@
         "account": "Account",
         "fromAccount": "From account",
         "toAccount": "To account",
+        "allocation": "Allocation",
         "paidBy": "Paid by",
         "description": "Description",
         "descriptionPlaceholder": "Optional description"

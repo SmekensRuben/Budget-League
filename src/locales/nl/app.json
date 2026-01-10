@@ -95,6 +95,7 @@
         "account": "Account",
         "fromAccount": "Van account",
         "toAccount": "Naar account",
+        "allocation": "Allocatie",
         "paidBy": "Betaald door",
         "description": "Omschrijving",
         "descriptionPlaceholder": "Optionele omschrijving"
