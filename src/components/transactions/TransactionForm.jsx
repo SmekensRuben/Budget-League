@@ -22,13 +22,13 @@ export default function TransactionForm({
 }) {
   const { t } = useTranslation("app");
 
+  const categoryType = formState.type === "transfer" ? "expense" : formState.type;
   const topLevelCategories = useMemo(() => {
     return categories.filter(
       (category) =>
-        !category.parentId &&
-        (!formState.type || category.type === formState.type)
+        !category.parentId && (!categoryType || category.type === categoryType)
     );
-  }, [categories, formState.type]);
+  }, [categories, categoryType]);
 
   const subcategoryOptions = useMemo(() => {
     if (!formState.categoryId) {
@@ -38,7 +38,7 @@ export default function TransactionForm({
   }, [categories, formState.categoryId]);
 
   const handleChange = (event) => {
-    const { name, value } = event.target;
+    const { name, value, type, checked } = event.target;
     if (onFieldEdit) {
       onFieldEdit();
     }
@@ -61,6 +61,7 @@ export default function TransactionForm({
         const baseState = {
           ...prev,
           type: value,
+          allocation: false,
           categoryId: "",
           category: "",
           subcategoryId: "",
@@ -80,6 +81,31 @@ export default function TransactionForm({
           };
         }
         return baseState;
+      });
+      return;
+    }
+    if (name === "allocation") {
+      const isAllocation = Boolean(checked);
+      setFormState((prev) => {
+        const nextState = { ...prev, allocation: isAllocation };
+        if (isAllocation) {
+          const isFundAccount = accounts.some(
+            (account) => account.isFund && account.id === prev.toAccountId
+          );
+          if (!isFundAccount) {
+            nextState.toAccountId = "";
+          }
+          return nextState;
+        }
+        return {
+          ...nextState,
+          categoryId: "",
+          category: "",
+          subcategoryId: "",
+          subcategory: "",
+          spendType: "",
+          incomeStability: ""
+        };
       });
       return;
     }
@@ -115,8 +141,17 @@ export default function TransactionForm({
       }));
       return;
     }
-    setFormState((prev) => ({ ...prev, [name]: value }));
+    const nextValue = type === "checkbox" ? checked : value;
+    setFormState((prev) => ({ ...prev, [name]: nextValue }));
   };
+
+  const isTransferAllocation = formState.type === "transfer" && formState.allocation;
+  const showCategorization = formState.type !== "transfer" || isTransferAllocation;
+  const fundAccountOptions = useMemo(
+    () => accounts.filter((account) => account.isFund),
+    [accounts]
+  );
+  const toAccountOptions = isTransferAllocation ? fundAccountOptions : accounts;
 
   return (
     <form className="space-y-6" onSubmit={onSubmit}>
@@ -212,7 +247,7 @@ export default function TransactionForm({
         </div>
       </section>
 
-      {formState.type !== "transfer" ? (
+      {showCategorization ? (
         <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
           <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
             {t("pages.transactions.sections.categorization")}
@@ -226,7 +261,7 @@ export default function TransactionForm({
                 onChange={handleChange}
                 className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
                 disabled={disabled}
-                required
+                required={showCategorization}
               >
                 <option value="">
                   {t("pages.transactions.placeholders.category")}
@@ -246,7 +281,7 @@ export default function TransactionForm({
                 onChange={handleChange}
                 className="rounded-xl border border-white/10 bg-slate-950/60 px-4 py-3 text-white"
                 disabled={disabled || !formState.categoryId}
-                required
+                required={showCategorization}
               >
                 <option value="">
                   {t("pages.transactions.placeholders.subcategory")}
@@ -280,7 +315,7 @@ export default function TransactionForm({
                   </option>
                 </select>
               </label>
-            ) : (
+            ) : formState.type === "income" ? (
               <label className="flex flex-col gap-2 text-sm">
                 {t("pages.transactions.fields.incomeStability")}*
                 <select
@@ -302,10 +337,12 @@ export default function TransactionForm({
                   </option>
                 </select>
               </label>
-            )}
+            ) : null}
           </div>
         </section>
-      ) : (
+      ) : null}
+
+      {formState.type === "transfer" ? (
         <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">
           <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-200">
             {t("pages.transactions.sections.transfer")}
@@ -342,16 +379,27 @@ export default function TransactionForm({
                 required
               >
                 <option value="">{t("pages.transactions.placeholders.toAccount")}</option>
-                {accounts.map((account) => (
+                {toAccountOptions.map((account) => (
                   <option key={account.id} value={account.id}>
                     {account.name}
                   </option>
                 ))}
               </select>
             </label>
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <input
+                type="checkbox"
+                name="allocation"
+                checked={Boolean(formState.allocation)}
+                onChange={handleChange}
+                className="h-4 w-4 rounded border-white/20 bg-slate-950/60 text-amber-400 focus:ring-amber-400"
+                disabled={disabled}
+              />
+              {t("pages.transactions.fields.allocation")}
+            </label>
           </div>
         </section>
-      )}
+      ) : null}
 
       {formState.type !== "transfer" ? (
         <section className="rounded-2xl border border-white/10 bg-slate-900/40 p-6">

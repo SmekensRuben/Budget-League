@@ -53,7 +53,7 @@ export default function TransactionsPage() {
 
   const requiredFields = useMemo(() => {
     if (formState.type === "transfer") {
-      return [
+      const baseFields = [
         "date",
         "amount",
         "currency",
@@ -62,6 +62,10 @@ export default function TransactionsPage() {
         "fromAccountId",
         "toAccountId"
       ];
+      if (formState.allocation) {
+        return [...baseFields, "categoryId", "subcategoryId"];
+      }
+      return baseFields;
     }
     const baseFields = [
       "date",
@@ -76,7 +80,7 @@ export default function TransactionsPage() {
       return [...baseFields, "incomeStability"];
     }
     return [...baseFields, "spendType"];
-  }, [formState.type]);
+  }, [formState.allocation, formState.type]);
 
   useEffect(() => {
     if (!editingTransactionId) {

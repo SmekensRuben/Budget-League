@@ -64,7 +64,7 @@ export default function AddTransactionPage() {
 
   const requiredFields = useMemo(() => {
     if (formState.type === "transfer") {
-      return [
+      const baseFields = [
         "date",
         "amount",
         "currency",
@@ -73,6 +73,10 @@ export default function AddTransactionPage() {
         "fromAccountId",
         "toAccountId"
       ];
+      if (formState.allocation) {
+        return [...baseFields, "categoryId", "subcategoryId"];
+      }
+      return baseFields;
     }
     const baseFields = [
       "date",
@@ -87,7 +91,7 @@ export default function AddTransactionPage() {
       return [...baseFields, "incomeStability"];
     }
     return [...baseFields, "spendType"];
-  }, [formState.type]);
+  }, [formState.allocation, formState.type]);
 
   const isFormValid = requiredFields.every((field) => String(formState[field]).trim());
 
