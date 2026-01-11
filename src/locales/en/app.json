@@ -146,12 +146,16 @@
         "dateRange": "Date range",
         "type": "Type",
         "householdUser": "Household user",
+        "account": "Account",
         "category": "Category",
         "all": "All"
       },
       "list": {
         "title": "Transaction history",
         "subtitle": "Review and filter household entries.",
+        "headers": {
+          "actions": "Actions"
+        },
         "empty": "No transactions match these filters yet.",
         "unnamed": "Unnamed merchant",
         "transferAccounts": "{{from}} → {{to}}",
