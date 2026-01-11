@@ -45,7 +45,8 @@ export default function TransactionsPage() {
     endDate: "",
     type: "",
     paidByUserId: "",
-    categoryId: ""
+    categoryId: "",
+    accountId: ""
   });
 
   const { categories, paymentMethods, accounts, merchants, household, members } =
@@ -182,6 +183,18 @@ export default function TransactionsPage() {
           categoryName &&
           transaction.category !== categoryName
         ) {
+          return false;
+        }
+      }
+      if (filters.accountId) {
+        if (transaction.type === "transfer") {
+          if (
+            transaction.fromAccountId !== filters.accountId &&
+            transaction.toAccountId !== filters.accountId
+          ) {
+            return false;
+          }
+        } else if (transaction.accountId !== filters.accountId) {
           return false;
         }
       }
@@ -385,7 +398,7 @@ export default function TransactionsPage() {
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             <label className="flex flex-col gap-2 text-sm">
               {t("pages.transactions.filters.dateRange")}
               <div className="grid grid-cols-2 gap-2">
@@ -471,14 +484,34 @@ export default function TransactionsPage() {
                   .filter((category) => !category.parentId)
                   .map((category) => (
                     <option key={category.id} value={category.id}>
-                    {category.name}
+                      {category.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-2 text-sm">
+              {t("pages.transactions.filters.account")}
+              <select
+                value={filters.accountId}
+                onChange={(event) =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    accountId: event.target.value
+                  }))
+                }
+                className="rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-white"
+              >
+                <option value="">{t("pages.transactions.filters.all")}</option>
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.name}
                   </option>
                 ))}
               </select>
             </label>
           </div>
 
-          <div className="mt-6 space-y-3">
+          <div className="mt-6">
             {!profile?.householdId ? (
               <p className="text-sm text-slate-400">
                 {t("pages.transactions.noHousehold")}
@@ -488,87 +521,125 @@ export default function TransactionsPage() {
                 {t("pages.transactions.list.empty")}
               </p>
             ) : (
-              filteredTransactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/10 bg-slate-950/40 p-4"
-                >
-                  <div>
-                    <p className="text-sm text-slate-400">{transaction.date}</p>
-                    <p className="text-lg font-semibold text-white">
-                      {transaction.type === "transfer"
-                        ? t("pages.transactions.types.transfer")
-                        : transaction.merchant ||
-                          t("pages.transactions.list.unnamed")}
-                    </p>
-                    <p className="text-sm text-slate-300">
-                      {transaction.type === "transfer"
-                        ? t("pages.transactions.list.transferAccounts", {
-                            from:
-                              accountLookup[transaction.fromAccountId]?.name ||
-                              t("pages.transactions.list.noAccount"),
-                            to:
-                              accountLookup[transaction.toAccountId]?.name ||
-                              t("pages.transactions.list.noAccount")
-                          })
-                        : [
-                            categoryLookup[transaction.categoryId] ||
-                              transaction.category ||
-                              t("pages.transactions.list.noCategory"),
-                            subcategoryLookup[transaction.subcategoryId] ||
-                              transaction.subcategory ||
-                              null
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")}
-                    </p>
-                    <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
-                      {transaction.type
-                        ? t(`pages.transactions.types.${transaction.type}`)
-                        : t("pages.transactions.list.noType")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-white">
-                      {transaction.amount} {transaction.currency}
-                    </p>
-                    <p className="text-sm text-slate-300">
-                      {transaction.type === "transfer"
-                        ? t("pages.transactions.list.transferAccounts", {
-                            from:
-                              accountLookup[transaction.fromAccountId]?.name ||
-                              t("pages.transactions.list.noAccount"),
-                            to:
-                              accountLookup[transaction.toAccountId]?.name ||
-                              t("pages.transactions.list.noAccount")
-                          })
-                        : transaction.paymentMethod ||
-                          t("pages.transactions.list.noPaymentMethod")}
-                    </p>
-                    <p className="text-sm text-slate-400">
-                      {memberLookup[transaction.paidByUserId] ||
-                        transaction.paidByUserId ||
-                        t("pages.transactions.list.noPaidBy")}
-                    </p>
-                    <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(transaction)}
-                        className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
-                      >
-                        {t("pages.transactions.actions.edit")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(transaction.id)}
-                        className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
-                      >
-                        {t("pages.transactions.actions.delete")}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-y-2">
+                  <thead>
+                    <tr className="text-left text-xs uppercase tracking-[0.2em] text-slate-400">
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.fields.date")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.fields.merchant")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.fields.category")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.fields.type")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.fields.amount")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.fields.account")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.fields.paidBy")}
+                      </th>
+                      <th className="px-4 py-2">
+                        {t("pages.transactions.list.headers.actions")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTransactions.map((transaction) => {
+                      const accountLabel =
+                        transaction.type === "transfer"
+                          ? t("pages.transactions.list.transferAccounts", {
+                              from:
+                                accountLookup[transaction.fromAccountId]?.name ||
+                                t("pages.transactions.list.noAccount"),
+                              to:
+                                accountLookup[transaction.toAccountId]?.name ||
+                                t("pages.transactions.list.noAccount")
+                            })
+                          : accountLookup[transaction.accountId]?.name ||
+                            transaction.paymentMethod ||
+                            t("pages.transactions.list.noAccount");
+
+                      return (
+                        <tr
+                          key={transaction.id}
+                          className="bg-slate-950/40 text-sm text-slate-200"
+                        >
+                          <td className="rounded-l-xl px-4 py-3 align-top text-slate-300">
+                            {transaction.date}
+                          </td>
+                          <td className="px-4 py-3 align-top">
+                            <div className="font-semibold text-white">
+                              {transaction.type === "transfer"
+                                ? t("pages.transactions.types.transfer")
+                                : transaction.merchant ||
+                                  t("pages.transactions.list.unnamed")}
+                            </div>
+                            {transaction.description ? (
+                              <div className="text-xs text-slate-400">
+                                {transaction.description}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3 align-top text-slate-300">
+                            {[
+                              categoryLookup[transaction.categoryId] ||
+                                transaction.category ||
+                                t("pages.transactions.list.noCategory"),
+                              subcategoryLookup[transaction.subcategoryId] ||
+                                transaction.subcategory ||
+                                null
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </td>
+                          <td className="px-4 py-3 align-top text-xs uppercase tracking-[0.2em] text-amber-200">
+                            {transaction.type
+                              ? t(`pages.transactions.types.${transaction.type}`)
+                              : t("pages.transactions.list.noType")}
+                          </td>
+                          <td className="px-4 py-3 align-top font-semibold text-white">
+                            {transaction.amount} {transaction.currency}
+                          </td>
+                          <td className="px-4 py-3 align-top text-slate-300">
+                            {accountLabel}
+                          </td>
+                          <td className="px-4 py-3 align-top text-slate-300">
+                            {memberLookup[transaction.paidByUserId] ||
+                              transaction.paidByUserId ||
+                              t("pages.transactions.list.noPaidBy")}
+                          </td>
+                          <td className="rounded-r-xl px-4 py-3 align-top">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleEdit(transaction)}
+                                className="rounded-lg border border-amber-400/40 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/20"
+                              >
+                                {t("pages.transactions.actions.edit")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(transaction.id)}
+                                className="rounded-lg border border-red-400/40 px-3 py-1 text-xs font-semibold text-red-200 transition hover:bg-red-500/20"
+                              >
+                                {t("pages.transactions.actions.delete")}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </section>

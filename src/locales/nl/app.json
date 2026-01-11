@@ -146,12 +146,16 @@
         "dateRange": "Periode",
         "type": "Type",
         "householdUser": "Householdlid",
+        "account": "Account",
         "category": "Categorie",
         "all": "Alles"
       },
       "list": {
         "title": "Transactielijst",
         "subtitle": "Bekijk en filter household transacties.",
+        "headers": {
+          "actions": "Acties"
+        },
         "empty": "Geen transacties gevonden voor deze filters.",
         "unnamed": "Onbekende merchant",
         "transferAccounts": "{{from}} → {{to}}",
