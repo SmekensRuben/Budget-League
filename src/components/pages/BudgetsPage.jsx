@@ -280,6 +280,18 @@ export default function BudgetsPage() {
     const fundAccountIds = new Set(
       accounts.filter((account) => account.isFund).map((account) => account.id)
     );
+    const accountOwnerLookup = accounts.reduce((acc, account) => {
+      if (Array.isArray(account.ownerIds)) {
+        acc[account.id] = account.ownerIds;
+        return acc;
+      }
+      if (account.ownerId) {
+        acc[account.id] = [account.ownerId];
+        return acc;
+      }
+      acc[account.id] = [];
+      return acc;
+    }, {});
     const { startDate, endDate } = selectedMonth
       ? getMonthRange(selectedMonth)
       : getCurrentMonthRange();
@@ -296,11 +308,22 @@ export default function BudgetsPage() {
       ) {
         return;
       }
-      if (
-        selectedMemberId !== "all" &&
-        transaction.paidByUserId !== selectedMemberId
-      ) {
-        return;
+      let memberShare = 1;
+      if (selectedMemberId !== "all") {
+        if (isAllocationTransfer) {
+          const ownerIds =
+            accountOwnerLookup[transaction.fromAccountId] || [];
+          if (ownerIds.length > 0) {
+            if (!ownerIds.includes(selectedMemberId)) {
+              return;
+            }
+            memberShare = 1 / ownerIds.length;
+          } else if (transaction.paidByUserId !== selectedMemberId) {
+            return;
+          }
+        } else if (transaction.paidByUserId !== selectedMemberId) {
+          return;
+        }
       }
       if (transaction.date < startDate || transaction.date > endDate) {
         return;
@@ -310,7 +333,7 @@ export default function BudgetsPage() {
       if (!categoryId) {
         return;
       }
-      const amount = parseAmount(transaction.amount);
+      const amount = parseAmount(transaction.amount) * memberShare;
       totals[categoryId] = (totals[categoryId] || 0) + amount;
       const parentId = categoryById[categoryId]?.parentId;
       if (parentId) {
