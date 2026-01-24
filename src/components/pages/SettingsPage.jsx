@@ -1033,13 +1033,28 @@ function AccountsTab({ user, profile }) {
       const openingBalance = Number(account.openingBalance) || 0;
       const openingDate = account.openingBalanceDate;
       const total = transactions.reduce((sum, transaction) => {
-        if (transaction.accountId !== account.id) {
-          return sum;
-        }
         if (openingDate && transaction.date && transaction.date < openingDate) {
           return sum;
         }
         const amount = Number(transaction.amount) || 0;
+        if (transaction.type === "transfer") {
+          if (
+            transaction.fromAccountId === account.id &&
+            transaction.toAccountId === account.id
+          ) {
+            return sum;
+          }
+          if (transaction.fromAccountId === account.id) {
+            return sum - amount;
+          }
+          if (transaction.toAccountId === account.id) {
+            return sum + amount;
+          }
+          return sum;
+        }
+        if (transaction.accountId !== account.id) {
+          return sum;
+        }
         const delta = transaction.type === "income" ? amount : -amount;
         return sum + delta;
       }, openingBalance);
