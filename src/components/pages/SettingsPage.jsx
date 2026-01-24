@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import AppLayout from "../shared/AppLayout";
 import { useAuthContext } from "../../contexts/AuthContext";
@@ -283,6 +283,7 @@ function GeneralTab({ user, profile }) {
 function CategoriesTab({ user, profile }) {
   const { t } = useTranslation("app");
   const [categories, setCategories] = useState([]);
+  const fileInputRef = useRef(null);
   const [formState, setFormState] = useState({
     name: "",
     type: "expense",
@@ -456,13 +457,284 @@ function CategoriesTab({ user, profile }) {
     }
   };
 
+  const escapeCsvValue = (value) => {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    const stringValue = String(value);
+    if (/[",\n]/.test(stringValue)) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+
+  const buildCategoriesCsv = () => {
+    const header = [
+      "name",
+      "type",
+      "parentName",
+      "spendType",
+      "incomeStability"
+    ];
+    const rows = categories.map((category) => {
+      const parentName =
+        categories.find((item) => item.id === category.parentId)?.name || "";
+      return [
+        category.name,
+        category.type,
+        parentName,
+        category.spendType || "",
+        category.incomeStability || ""
+      ]
+        .map(escapeCsvValue)
+        .join(",");
+    });
+    return [header.join(","), ...rows].join("\n");
+  };
+
+  const handleExport = () => {
+    const csv = buildCategoriesCsv();
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "categories.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const normalizeHeader = (value) =>
+    value.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
+  const parseCsvRows = (text) => {
+    const rows = [];
+    let row = [];
+    let field = "";
+    let inQuotes = false;
+    let index = 0;
+
+    while (index < text.length) {
+      const char = text[index];
+      if (inQuotes) {
+        if (char === '"') {
+          if (text[index + 1] === '"') {
+            field += '"';
+            index += 2;
+            continue;
+          }
+          inQuotes = false;
+          index += 1;
+          continue;
+        }
+        field += char;
+        index += 1;
+        continue;
+      }
+      if (char === '"') {
+        inQuotes = true;
+        index += 1;
+        continue;
+      }
+      if (char === ",") {
+        row.push(field);
+        field = "";
+        index += 1;
+        continue;
+      }
+      if (char === "\n") {
+        row.push(field);
+        rows.push(row);
+        row = [];
+        field = "";
+        index += 1;
+        continue;
+      }
+      if (char === "\r") {
+        index += 1;
+        continue;
+      }
+      field += char;
+      index += 1;
+    }
+
+    if (field.length > 0 || row.length > 0) {
+      row.push(field);
+      rows.push(row);
+    }
+
+    return rows.filter((rowItem) =>
+      rowItem.some((cell) => cell.trim().length > 0)
+    );
+  };
+
+  const handleImport = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !user || !profile?.householdId) {
+      return;
+    }
+    const text = await file.text();
+    const rows = parseCsvRows(text);
+    if (rows.length < 2) {
+      event.target.value = "";
+      return;
+    }
+    const [headerRow, ...dataRows] = rows;
+    const headerIndexMap = headerRow.reduce((acc, header, idx) => {
+      acc[normalizeHeader(header)] = idx;
+      return acc;
+    }, {});
+    const nameIndex = headerIndexMap.name;
+    const typeIndex = headerIndexMap.type;
+    if (nameIndex === undefined || typeIndex === undefined) {
+      event.target.value = "";
+      return;
+    }
+    const parentIndex = headerIndexMap.parentname ?? headerIndexMap.parent;
+    const spendTypeIndex = headerIndexMap.spendtype;
+    const incomeStabilityIndex = headerIndexMap.incomestability;
+    const items = dataRows
+      .map((row) => {
+        const name = row[nameIndex]?.trim();
+        if (!name) {
+          return null;
+        }
+        const rawType = row[typeIndex]?.trim().toLowerCase();
+        const type = rawType === "income" ? "income" : "expense";
+        return {
+          name,
+          type,
+          parentName: parentIndex !== undefined ? row[parentIndex]?.trim() : "",
+          spendType:
+            spendTypeIndex !== undefined
+              ? row[spendTypeIndex]?.trim().toLowerCase()
+              : "",
+          incomeStability:
+            incomeStabilityIndex !== undefined
+              ? row[incomeStabilityIndex]?.trim().toLowerCase()
+              : ""
+        };
+      })
+      .filter(Boolean);
+
+    const existingByName = new Map(
+      categories.map((category) => [category.name.toLowerCase(), category.id])
+    );
+    const createdByName = new Map();
+    const categoriesRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "categories"
+    );
+
+    for (const item of items.filter((row) => !row.parentName)) {
+      const docRef = await addDoc(categoriesRef, {
+        name: item.name,
+        type: item.type,
+        parentId: null,
+        spendType: null,
+        incomeStability: null,
+        createdAt: serverTimestamp()
+      });
+      createdByName.set(item.name.toLowerCase(), docRef.id);
+    }
+
+    for (const item of items.filter((row) => row.parentName)) {
+      const parentKey = item.parentName.toLowerCase();
+      const parentId =
+        createdByName.get(parentKey) || existingByName.get(parentKey);
+      if (!parentId) {
+        continue;
+      }
+      const spendType =
+        item.type === "expense"
+          ? item.spendType === "discretionary"
+            ? "discretionary"
+            : "essential"
+          : null;
+      const incomeStability =
+        item.type === "income"
+          ? item.incomeStability === "irregular"
+            ? "irregular"
+            : "regular"
+          : null;
+      await addDoc(categoriesRef, {
+        name: item.name,
+        type: item.type,
+        parentId,
+        spendType,
+        incomeStability,
+        createdAt: serverTimestamp()
+      });
+    }
+
+    event.target.value = "";
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold">{t("settings.categories.title")}</h2>
-        <p className="text-sm text-slate-400">
-          {t("settings.categories.subtitle")}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-semibold">
+            {t("settings.categories.title")}
+          </h2>
+          <p className="text-sm text-slate-400">
+            {t("settings.categories.subtitle")}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleExport}
+            className="rounded-lg border border-white/10 bg-slate-950/40 p-2 text-slate-200 transition hover:bg-white/10"
+          >
+            <span className="sr-only">Export categories</span>
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.5"
+            >
+              <path d="M12 4v10" />
+              <path d="m8 8 4-4 4 4" />
+              <path d="M4 16.5h16" />
+              <path d="M6 16.5v3h12v-3" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-lg border border-white/10 bg-slate-950/40 p-2 text-slate-200 transition hover:bg-white/10"
+          >
+            <span className="sr-only">Import categories</span>
+            <svg
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className="h-4 w-4"
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.5"
+            >
+              <path d="M12 20V10" />
+              <path d="m8 16 4 4 4-4" />
+              <path d="M4 7.5h16" />
+              <path d="M6 7.5V4h12v3.5" />
+            </svg>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleImport}
+          />
+        </div>
       </div>
 
       <form
