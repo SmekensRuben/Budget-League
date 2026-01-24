@@ -71,6 +71,7 @@ export default function BudgetsPage() {
   const [categories, setCategories] = useState([]);
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [paymentMethods, setPaymentMethods] = useState([]);
   const [household, setHousehold] = useState(null);
   const [members, setMembers] = useState([]);
   const [budgetDrafts, setBudgetDrafts] = useState({});
@@ -140,6 +141,27 @@ export default function BudgetsPage() {
         ...docSnap.data()
       }));
       setAccounts(data);
+    });
+    return () => unsubscribe();
+  }, [profile?.householdId]);
+
+  useEffect(() => {
+    if (!profile?.householdId) {
+      setPaymentMethods([]);
+      return;
+    }
+    const paymentMethodsRef = collection(
+      db,
+      "households",
+      profile.householdId,
+      "paymentMethods"
+    );
+    const unsubscribe = onSnapshot(paymentMethodsRef, (snapshot) => {
+      const data = snapshot.docs.map((docSnap) => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      setPaymentMethods(data);
     });
     return () => unsubscribe();
   }, [profile?.householdId]);
@@ -292,6 +314,13 @@ export default function BudgetsPage() {
       acc[account.id] = [];
       return acc;
     }, {});
+    const paymentMethodAccountMap = profile?.paymentMethodAccountMap || {};
+    const paymentMethodIdByName = paymentMethods.reduce((acc, method) => {
+      if (method?.name) {
+        acc[method.name] = method.id;
+      }
+      return acc;
+    }, {});
     const { startDate, endDate } = selectedMonth
       ? getMonthRange(selectedMonth)
       : getCurrentMonthRange();
@@ -321,8 +350,23 @@ export default function BudgetsPage() {
           } else if (transaction.paidByUserId !== selectedMemberId) {
             return;
           }
-        } else if (transaction.paidByUserId !== selectedMemberId) {
-          return;
+        } else if (transaction.type === "expense") {
+          const paymentMethodId =
+            transaction.paymentMethodId ||
+            paymentMethodIdByName[transaction.paymentMethod];
+          const accountId =
+            paymentMethodId && paymentMethodAccountMap[paymentMethodId]
+              ? paymentMethodAccountMap[paymentMethodId]
+              : transaction.accountId;
+          const ownerIds = accountId ? accountOwnerLookup[accountId] || [] : [];
+          if (ownerIds.length > 0) {
+            if (!ownerIds.includes(selectedMemberId)) {
+              return;
+            }
+            memberShare = 1 / ownerIds.length;
+          } else if (transaction.paidByUserId !== selectedMemberId) {
+            return;
+          }
         }
       }
       if (transaction.date < startDate || transaction.date > endDate) {
@@ -346,6 +390,8 @@ export default function BudgetsPage() {
     transactions,
     categoryNameLookup,
     categoryById,
+    paymentMethods,
+    profile?.paymentMethodAccountMap,
     selectedMonth,
     selectedMemberId
   ]);
