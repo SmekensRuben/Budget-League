@@ -208,9 +208,16 @@ export default function StartPage() {
       if (filters.paidByUserId && transaction.paidByUserId !== filters.paidByUserId) {
         return false;
       }
+      if (
+        accountFilters.accountIds.length > 0 &&
+        transaction.accountId &&
+        !accountFilters.accountIds.includes(transaction.accountId)
+      ) {
+        return false;
+      }
       return true;
     });
-  }, [transactions, filters]);
+  }, [transactions, filters, accountFilters.accountIds]);
 
   const summary = useMemo(() => {
     return filteredTransactions.reduce(
@@ -851,6 +858,42 @@ export default function StartPage() {
                     </select>
                   </label>
                 </div>
+                <div className="mt-4 rounded-xl border border-white/10 bg-slate-950/40 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
+                    {t("pages.start.accounts.filters.accounts")}
+                  </p>
+                  <div className="mt-3 space-y-2 text-sm text-slate-300">
+                    {accounts.length === 0 ? (
+                      <p className="text-xs text-slate-400">
+                        {t("pages.start.accounts.noAccounts")}
+                      </p>
+                    ) : (
+                      accounts.map((account) => (
+                        <label
+                          key={account.id}
+                          className="flex items-center gap-2"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={accountFilters.accountIds.includes(account.id)}
+                            onChange={(event) => {
+                              setAccountFilters((prev) => {
+                                const nextIds = event.target.checked
+                                  ? [...prev.accountIds, account.id]
+                                  : prev.accountIds.filter(
+                                      (id) => id !== account.id
+                                    );
+                                return { ...prev, accountIds: nextIds };
+                              });
+                            }}
+                            className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400 focus:ring-amber-500/50"
+                          />
+                          {account.name}
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-[2fr_1fr]">
@@ -916,267 +959,6 @@ export default function StartPage() {
                       {t("pages.start.dashboard.summaryDescription", {
                         count: filteredTransactions.length
                       })}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
-                <div className="rounded-xl border border-white/10 bg-slate-950/40 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        {t("pages.start.accounts.title")}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {t("pages.start.accounts.subtitle")}
-                      </p>
-                    </div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
-                      {t("pages.start.accounts.total", {
-                        count: selectedAccounts.length
-                      })}
-                    </p>
-                  </div>
-
-                  {accountChartLines.length === 0 ? (
-                    <p className="mt-4 text-sm text-slate-400">
-                      {t("pages.start.accounts.empty")}
-                    </p>
-                  ) : (
-                    <div className="mt-4 space-y-4">
-                      <div className="grid grid-cols-[auto_1fr] gap-3">
-                        <div className="flex h-52 flex-col justify-between text-xs text-slate-400">
-                          <span>
-                            {formatBalanceLabel(accountBalanceRange.max)}
-                          </span>
-                          <span>
-                            {formatBalanceLabel(
-                              (accountBalanceRange.max +
-                                accountBalanceRange.min) /
-                                2
-                            )}
-                          </span>
-                          <span>
-                            {formatBalanceLabel(accountBalanceRange.min)}
-                          </span>
-                        </div>
-                        <div className="relative h-52 w-full">
-                          <svg
-                            viewBox="0 0 1000 200"
-                            className="h-full w-full"
-                            aria-label={t("pages.start.accounts.chartLabel")}
-                            onMouseLeave={() => setHoveredAccountPoint(null)}
-                            onMouseMove={(event) => {
-                              if (accountChartData.dates.length === 0) {
-                                return;
-                              }
-                              const rect = event.currentTarget.getBoundingClientRect();
-                              const ratio = Math.min(
-                                Math.max(
-                                  (event.clientX - rect.left) / rect.width,
-                                  0
-                                ),
-                                1
-                              );
-                              const index =
-                                accountChartData.dates.length === 1
-                                  ? 0
-                                  : Math.round(
-                                      ratio *
-                                        (accountChartData.dates.length - 1)
-                                    );
-                              setHoveredAccountPoint({ index, ratio });
-                            }}
-                          >
-                            {accountChartLines.map((line, index) =>
-                              line ? (
-                                <polyline
-                                  key={line.id}
-                                  points={line.points}
-                                  fill="none"
-                                  stroke={chartColors[index % chartColors.length]}
-                                  strokeWidth="3"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              ) : null
-                            )}
-                            {getAccountHoverData ? (
-                              <line
-                                x1={
-                                  accountChartData.dates.length === 1
-                                    ? 500
-                                    : (getAccountHoverData.index /
-                                        (accountChartData.dates.length - 1)) *
-                                      1000
-                                }
-                                x2={
-                                  accountChartData.dates.length === 1
-                                    ? 500
-                                    : (getAccountHoverData.index /
-                                        (accountChartData.dates.length - 1)) *
-                                      1000
-                                }
-                                y1="0"
-                                y2="200"
-                                stroke="rgba(148, 163, 184, 0.4)"
-                                strokeDasharray="4 6"
-                              />
-                            ) : null}
-                            {getAccountHoverData
-                              ? getAccountHoverData.items.map((item) => {
-                                  if (item.balance === undefined) {
-                                    return null;
-                                  }
-                                  const position = getAccountPointPosition(
-                                    getAccountHoverData.index,
-                                    item.balance
-                                  );
-                                  return (
-                                    <circle
-                                      key={item.id}
-                                      cx={position.x}
-                                      cy={position.y}
-                                      r="5"
-                                      fill={item.color}
-                                      stroke="#0f172a"
-                                      strokeWidth="2"
-                                    />
-                                  );
-                                })
-                              : null}
-                          </svg>
-                          {getAccountHoverData ? (
-                            <div
-                              className="pointer-events-none absolute top-2 rounded-xl border border-white/10 bg-slate-950/90 px-3 py-2 text-xs text-slate-200 shadow-lg"
-                              style={{
-                                left: `${getAccountHoverData.ratio * 100}%`,
-                                transform: "translateX(-50%)"
-                              }}
-                            >
-                              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
-                                {formatDateLabel(getAccountHoverData.date)}
-                              </p>
-                              <div className="mt-2 space-y-1">
-                                {getAccountHoverData.items.map((item) => (
-                                  <div
-                                    key={item.id}
-                                    className="flex items-center justify-between gap-3"
-                                  >
-                                    <span className="flex items-center gap-2">
-                                      <span
-                                        className="h-2 w-2 rounded-full"
-                                        style={{ backgroundColor: item.color }}
-                                      />
-                                      {item.name}
-                                    </span>
-                                    <span className="font-semibold text-white">
-                                      {item.balance === undefined
-                                        ? "—"
-                                        : formatBalanceLabel(item.balance)}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-[auto_1fr] gap-3 text-xs text-slate-400">
-                        <span />
-                        <div className="flex items-center justify-between">
-                          <span>
-                            {formatDateLabel(accountChartData.dates[0])}
-                          </span>
-                          <span>
-                            {formatDateLabel(
-                              accountChartData.dates[
-                                Math.floor(
-                                  (accountChartData.dates.length - 1) / 2
-                                )
-                              ]
-                            )}
-                          </span>
-                          <span>
-                            {formatDateLabel(
-                              accountChartData.dates[
-                                accountChartData.dates.length - 1
-                              ]
-                            )}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-3 text-xs text-slate-300">
-                        {accountChartLines.map((line, index) =>
-                          line ? (
-                            <span key={line.id} className="flex items-center gap-2">
-                              <span
-                                className="h-2 w-2 rounded-full"
-                                style={{
-                                  backgroundColor:
-                                    chartColors[index % chartColors.length]
-                                }}
-                              />
-                              {line.name}
-                            </span>
-                          ) : null
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4">
-                    <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
-                      {t("pages.start.accounts.filters.accounts")}
-                    </p>
-                    <div className="mt-3 space-y-2 text-sm text-slate-300">
-                      {accounts.length === 0 ? (
-                        <p className="text-xs text-slate-400">
-                          {t("pages.start.accounts.noAccounts")}
-                        </p>
-                      ) : (
-                        accounts.map((account) => (
-                          <label
-                            key={account.id}
-                            className="flex items-center gap-2"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={accountFilters.accountIds.includes(
-                                account.id
-                              )}
-                              onChange={(event) => {
-                                setAccountFilters((prev) => {
-                                  const nextIds = event.target.checked
-                                    ? [...prev.accountIds, account.id]
-                                    : prev.accountIds.filter(
-                                        (id) => id !== account.id
-                                      );
-                                  return { ...prev, accountIds: nextIds };
-                                });
-                              }}
-                              className="h-4 w-4 rounded border-white/20 bg-slate-900 text-amber-400 focus:ring-amber-500/50"
-                            />
-                            {account.name}
-                          </label>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
-                    <p className="font-semibold text-white">
-                      {t("pages.start.accounts.rangeLabel")}
-                    </p>
-                    <p className="mt-2 text-slate-400">
-                      {filters.startDate || filters.endDate
-                        ? t("pages.start.accounts.rangeValue", {
-                            start: filters.startDate || "—",
-                            end: filters.endDate || "—"
-                          })
-                        : t("pages.start.accounts.rangeFallback")}
                     </p>
                   </div>
                 </div>
@@ -1517,6 +1299,229 @@ export default function StartPage() {
                         )}
                       </div>
                     ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+                <div className="rounded-xl border border-white/10 bg-slate-950/40 p-5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-white">
+                        {t("pages.start.accounts.title")}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {t("pages.start.accounts.subtitle")}
+                      </p>
+                    </div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-amber-200">
+                      {t("pages.start.accounts.total", {
+                        count: selectedAccounts.length
+                      })}
+                    </p>
+                  </div>
+
+                  {accountChartLines.length === 0 ? (
+                    <p className="mt-4 text-sm text-slate-400">
+                      {t("pages.start.accounts.empty")}
+                    </p>
+                  ) : (
+                    <div className="mt-4 space-y-4">
+                      <div className="grid grid-cols-[auto_1fr] gap-3">
+                        <div className="flex h-52 flex-col justify-between text-xs text-slate-400">
+                          <span>
+                            {formatBalanceLabel(accountBalanceRange.max)}
+                          </span>
+                          <span>
+                            {formatBalanceLabel(
+                              (accountBalanceRange.max +
+                                accountBalanceRange.min) /
+                                2
+                            )}
+                          </span>
+                          <span>
+                            {formatBalanceLabel(accountBalanceRange.min)}
+                          </span>
+                        </div>
+                        <div className="relative h-52 w-full">
+                          <svg
+                            viewBox="0 0 1000 200"
+                            className="h-full w-full"
+                            aria-label={t("pages.start.accounts.chartLabel")}
+                            onMouseLeave={() => setHoveredAccountPoint(null)}
+                            onMouseMove={(event) => {
+                              if (accountChartData.dates.length === 0) {
+                                return;
+                              }
+                              const rect = event.currentTarget.getBoundingClientRect();
+                              const ratio = Math.min(
+                                Math.max(
+                                  (event.clientX - rect.left) / rect.width,
+                                  0
+                                ),
+                                1
+                              );
+                              const index =
+                                accountChartData.dates.length === 1
+                                  ? 0
+                                  : Math.round(
+                                      ratio *
+                                        (accountChartData.dates.length - 1)
+                                    );
+                              setHoveredAccountPoint({ index, ratio });
+                            }}
+                          >
+                            {accountChartLines.map((line, index) =>
+                              line ? (
+                                <polyline
+                                  key={line.id}
+                                  points={line.points}
+                                  fill="none"
+                                  stroke={chartColors[index % chartColors.length]}
+                                  strokeWidth="3"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              ) : null
+                            )}
+                            {getAccountHoverData ? (
+                              <line
+                                x1={
+                                  accountChartData.dates.length === 1
+                                    ? 500
+                                    : (getAccountHoverData.index /
+                                        (accountChartData.dates.length - 1)) *
+                                      1000
+                                }
+                                x2={
+                                  accountChartData.dates.length === 1
+                                    ? 500
+                                    : (getAccountHoverData.index /
+                                        (accountChartData.dates.length - 1)) *
+                                      1000
+                                }
+                                y1="0"
+                                y2="200"
+                                stroke="rgba(148, 163, 184, 0.4)"
+                                strokeDasharray="4 6"
+                              />
+                            ) : null}
+                            {getAccountHoverData
+                              ? getAccountHoverData.items.map((item) => {
+                                  if (item.balance === undefined) {
+                                    return null;
+                                  }
+                                  const position = getAccountPointPosition(
+                                    getAccountHoverData.index,
+                                    item.balance
+                                  );
+                                  return (
+                                    <circle
+                                      key={item.id}
+                                      cx={position.x}
+                                      cy={position.y}
+                                      r="5"
+                                      fill={item.color}
+                                      stroke="#0f172a"
+                                      strokeWidth="2"
+                                    />
+                                  );
+                                })
+                              : null}
+                          </svg>
+                          {getAccountHoverData ? (
+                            <div
+                              className="pointer-events-none absolute top-2 rounded-xl border border-white/10 bg-slate-950/90 px-3 py-2 text-xs text-slate-200 shadow-lg"
+                              style={{
+                                left: `${getAccountHoverData.ratio * 100}%`,
+                                transform: "translateX(-50%)"
+                              }}
+                            >
+                              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                                {formatDateLabel(getAccountHoverData.date)}
+                              </p>
+                              <div className="mt-2 space-y-1">
+                                {getAccountHoverData.items.map((item) => (
+                                  <div
+                                    key={item.id}
+                                    className="flex items-center justify-between gap-3"
+                                  >
+                                    <span className="flex items-center gap-2">
+                                      <span
+                                        className="h-2 w-2 rounded-full"
+                                        style={{ backgroundColor: item.color }}
+                                      />
+                                      {item.name}
+                                    </span>
+                                    <span className="font-semibold text-white">
+                                      {item.balance === undefined
+                                        ? "—"
+                                        : formatBalanceLabel(item.balance)}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-[auto_1fr] gap-3 text-xs text-slate-400">
+                        <span />
+                        <div className="flex items-center justify-between">
+                          <span>
+                            {formatDateLabel(accountChartData.dates[0])}
+                          </span>
+                          <span>
+                            {formatDateLabel(
+                              accountChartData.dates[
+                                Math.floor(
+                                  (accountChartData.dates.length - 1) / 2
+                                )
+                              ]
+                            )}
+                          </span>
+                          <span>
+                            {formatDateLabel(
+                              accountChartData.dates[
+                                accountChartData.dates.length - 1
+                              ]
+                            )}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-3 text-xs text-slate-300">
+                        {accountChartLines.map((line, index) =>
+                          line ? (
+                            <span key={line.id} className="flex items-center gap-2">
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{
+                                  backgroundColor:
+                                    chartColors[index % chartColors.length]
+                                }}
+                              />
+                              {line.name}
+                            </span>
+                          ) : null
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4">
+                  <div className="rounded-xl border border-white/10 bg-slate-950/40 p-4 text-sm text-slate-300">
+                    <p className="font-semibold text-white">
+                      {t("pages.start.accounts.rangeLabel")}
+                    </p>
+                    <p className="mt-2 text-slate-400">
+                      {filters.startDate || filters.endDate
+                        ? t("pages.start.accounts.rangeValue", {
+                            start: filters.startDate || "—",
+                            end: filters.endDate || "—"
+                          })
+                        : t("pages.start.accounts.rangeFallback")}
+                    </p>
                   </div>
                 </div>
               </div>
