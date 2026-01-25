@@ -314,13 +314,6 @@ export default function BudgetsPage() {
       acc[account.id] = [];
       return acc;
     }, {});
-    const paymentMethodAccountMap = profile?.paymentMethodAccountMap || {};
-    const paymentMethodIdByName = paymentMethods.reduce((acc, method) => {
-      if (method?.name) {
-        acc[method.name] = method.id;
-      }
-      return acc;
-    }, {});
     const { startDate, endDate } = selectedMonth
       ? getMonthRange(selectedMonth)
       : getCurrentMonthRange();
@@ -351,13 +344,7 @@ export default function BudgetsPage() {
             return;
           }
         } else if (transaction.type === "expense") {
-          const paymentMethodId =
-            transaction.paymentMethodId ||
-            paymentMethodIdByName[transaction.paymentMethod];
-          const accountId =
-            paymentMethodId && paymentMethodAccountMap[paymentMethodId]
-              ? paymentMethodAccountMap[paymentMethodId]
-              : transaction.accountId;
+          const accountId = transaction.accountId;
           const ownerIds = accountId ? accountOwnerLookup[accountId] || [] : [];
           if (ownerIds.length > 0) {
             if (!ownerIds.includes(selectedMemberId)) {
@@ -390,8 +377,6 @@ export default function BudgetsPage() {
     transactions,
     categoryNameLookup,
     categoryById,
-    paymentMethods,
-    profile?.paymentMethodAccountMap,
     selectedMonth,
     selectedMemberId
   ]);
